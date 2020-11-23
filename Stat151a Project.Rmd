@@ -1,0 +1,17 @@
+---
+title: "Stat 151a Project"
+author: "Nathan Lam"
+date: "11/22/2020"
+output: pdf_document
+---
+
+```{r}
+library(fivethirtyeight)
+data <- college_recent_grads
+
+
+
+
+
+
+```

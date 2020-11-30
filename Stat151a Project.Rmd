@@ -8,10 +8,10 @@ output: pdf_document
 
 
 ```{r, warning=F, message=F}
-library(fivethirtyeight)
-library(corrplot)
-library(dplyr)
-library(ggplot2)
+library(fivethirtyeight) #source of data
+library(corrplot) #correlation plot
+library(dplyr) #data frame manipulation
+library(ggplot2) #plotting
 ```
 
 ```{r}

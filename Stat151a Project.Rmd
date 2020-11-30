@@ -1,13 +1,13 @@
 ---
 title: "Stat 151a Project"
-author: "Nathan Lam"
-date: "11/22/2020"
+author: "Kelly Trinh, Hanfei Sun, and Nathan Lam"
 output: pdf_document
 ---
 
+https://www.rdocumentation.org/packages/fivethirtyeight/versions/0.6.1/topics/college_recent_grads
 
 
-```{r, warning=F, message=F}
+```{r Libraries, message=FALSE, warning=FALSE}
 library(fivethirtyeight) #source of data
 library(corrplot) #correlation plot
 library(dplyr) #data frame manipulation

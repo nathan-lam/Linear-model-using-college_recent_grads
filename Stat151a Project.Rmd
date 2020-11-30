@@ -5,13 +5,30 @@ date: "11/22/2020"
 output: pdf_document
 ---
 
-```{r}
+
+
+```{r, warning=F, message=F}
 library(fivethirtyeight)
-data <- college_recent_grads
+library(corrplot)
+library(dplyr)
+library(ggplot2)
+```
 
+```{r}
+crg <- college_recent_grads
+```
 
+```{r}
+cont <- select_if(crg, is.numeric)
+cont["college_job_prop"] <- cont$college_jobs / (cont$college_jobs + cont$non_college_jobs)
+cont["full_time_yearround_prop"] <- cont$employed_fulltime_yearround / cont$employed
+cont <- na.omit(cont)
+corrplot(cor(cont), type = "upper", order = "AOE")
+crg["log_median"] <- log(crg$median)
+```
 
-print("hello")
-
+```{r}
+ggplot(aes(x = major_category, y = log_median), data = crg) + geom_boxplot() + coord_flip()
+```
 
 ```

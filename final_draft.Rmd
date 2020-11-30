@@ -1,0 +1,218 @@
+---
+title: "final_project_EDA"
+author: "Kelly Trinh"
+date: "11/29/2020"
+output: html_document
+---
+
+```{r setup, echo = FALSE, message = FALSE}
+library(ggplot2)
+library(lattice)
+library(corrplot)
+library(grid)
+library(car)
+library(dplyr)
+library(carData)
+library(GGally)
+library(fivethirtyeight)
+```
+
+```{r load_data}
+# load data
+grad <- college_recent_grads
+head(grad)
+```
+```{r variable_names}
+# names of all the columns 
+names(grad)
+```
+## 0. Research question 
+Question: Given a major category, what’s likely to be my median income as a full-time, year-round worker? 
+Model choice: Linear regression. 
+
+## 1. Data cleaning: missing values, data inconsistencies, transformations, outliers
+
+- Variables to exclude: 
+Rank: this is by definition, perfectly negatively correlated with median income. 
+Major code: this variable doesn't hold any meaningful predictive power. 
+Major: we are looking at the major category level, so we will not be looking at major.
+p25th: we are predicting median income, so we will not be looking at 25th precentile income. 
+p75th: same as above 
+Sample size: this variable doesn't hold any meaningful predictive power related to median income. 
+Total, men, and women: these three variables are related to the variable "sharewomen". Sharewomen contains information about all these three variables, and since we don't want any highly correlated predictive variables, we will only include sharewoen. 
+
+We will further select more variables when we look at correlations, interactions, and using model selection methods later on. 
+
+```{r understanding_data}
+# variables we will consider (so far)
+var.include <- c("major_category", "sharewomen", "employed", "employed_fulltime", 
+                 "employed_parttime", "employed_fulltime_yearround", "unemployed", "unemployment_rate", 
+                 "median", "college_jobs", "non_college_jobs", "low_wage_jobs")
+```
+
+- There is one row with missing values for "total", "men", "women", and "sharewomen". We will eliminate this row.
+
+```{r missing_values, echo = FALSE, results = "hide"}
+# view row with missing values 
+grad[rowSums(is.na(grad)) > 0,]
+
+# remove row with missing value 
+grad <- na.omit(grad)
+```
+
+- There are some inconsistencies in the data. The number of graduates employed fulltime and employed parttime do not add up to the number of employed graduates. Similarly, the number of college jobs and non-college jobs do not add up to the number of employed graduates. For example, there are some rows where the number of graduates employed fulltime is greater than the number of employed graduates. 
+
+```{r data_inconsistencies, echo = FALSE, results = "hide"}
+# view rows where data inconsistencies occur
+grad[grad$employed < grad$employed_fulltime, c("employed", "employed_fulltime")]
+grad[grad$employed < grad$employed_fulltime_yearround, c("employed", "employed_fulltime_yearround")]
+grad[grad$employed < grad$college_jobs + grad$non_college_jobs, c("college_jobs", "non_college_jobs", "employed")]
+```
+
+- The target variable is right skewed, so we will log-transform the median income to make it approximately normally distributed. 
+```{r transform_data}
+# transform categorical data 
+grad$major_category <- factor(grad$major_category)
+
+# visualize our target variable: median income 
+ggplot(grad, aes(x = median)) + geom_histogram(bins = 100) +
+  scale_x_continuous(breaks=seq(min(grad$median), max(grad$median), 10000)) 
+
+# log transform target variable 
+grad$log_median = log(grad$median)
+# visualize log-transformed variable 
+ggplot(grad, aes(x = log_median)) + geom_histogram(bins = 100) +
+  scale_x_continuous(breaks=seq(min(grad$log_median), max(grad$log_median), 10000)) 
+```
+```{r outliers}
+# examining outliers
+ggplot(data = grad, aes(x = major_category, y = log_median)) + geom_boxplot() + coord_flip()
+```
+When looking at the outliers, we see that for the major category, the two rows with outliers-"school student counseling" and "library science"-has a very small sample size (only 4 and 2); we will leave these two rows in the dataset for now, and will choose whether to eliminate them later when we perform diagnostics to access whether these rows signficantly affect the outputs of the OLS regression. 
+
+```{r outliers_ct, echo = FALSE, results = "hide"}
+
+# look at the outliers in detail
+
+# engineering: petroleum engineering
+grad.eng <- grad[grad$major_category == "Engineering", ]
+grad.eng[grad.eng$log_median == max(grad.eng$log_median), ]
+
+# biology and life sciences: zoology, high proportion of non-college jobs 
+grad.bio <- grad[grad$major_category == "Biology & Life Science", ]
+grad.bio[grad.bio$log_median == min(grad.bio$log_median), ]
+
+# arts
+grad.arts <- grad[grad$major_category == "Arts", ]
+grad.arts[grad.arts$log_median == max(grad.arts$log_median), ]
+
+# communications & journalism 
+grad.com <- grad[grad$major_category == "Communications & Journalism", ]
+grad.com[grad.com$log_median == min(grad.com$log_median), ]
+
+# education
+grad.edu <- grad[grad$major_category == "Education" & order(grad$log_median, decreasing = TRUE), ]
+grad.edu[c(1, nrow(grad.edu) - 1, nrow(grad.edu) ), ]
+```
+## 2. Examine correlation between variables 
+
+Some interesting observations include:
+- Log_median has strong negative correlations with "sharewomen".
+- Variables related to job type (for example, employed_fulltime, non_college_jobs, etc.) are highly correlated. Such high correlation can lead to multicollinearity problems in the data. We therefore decided to transform data. We created the variables "fulltime_yearround_prop", "low_wage_prop", and "college_prop".These variables would have weaker correlations with one another compared to the original variables "employed_fulltime_yearround", "low_wage_jobs", and "college_jobs". 
+
+```{r correlation}
+# data with only continuous variables that will be included in the model 
+# (var.include is defined above in the data cleaning section)
+cont <- grad[, c("log_median", var.include[2:length(var.include)])]
+
+# visualizing the correlation matrix (var.include )
+corrplot(cor(cont), order = "AOE", type = "upper")
+```
+- After transforming the data, we observe a few interesting things: 
+"Low_wage_prop" has strong correlations with the response variable "log_median", and weaker correlations with other predictor variables when compared to "low_wage_jobs". The same occurs when variable "college_prop" and "fulltime_yearround_prop". However, some multicollinearity still exists. 
+
+```{r transform_data_correlation}
+# transform employed_fulltime_yearround
+grad$fulltime_yearround_prop <- grad$employed_fulltime_yearround / grad$employed
+
+# transform employed_parttime
+grad$parttime_prop <- grad$employed_parttime / grad$employed
+
+# transform college_jobs
+grad$college_prop <- grad$college_jobs / (grad$college_jobs + grad$non_college_jobs)
+
+# transform non_college_jobs
+grad$noncollege_prop <- grad$non_college_jobs / (grad$college_jobs + grad$non_college_jobs)
+
+# transform low_wage_jobs
+grad$low_wage_prop <- grad$low_wage_jobs / grad$employed
+
+# re-examining the correlation matrix after transforming the data
+trans <- grad[, c("log_median", "fulltime_yearround_prop", "college_prop", "low_wage_prop", "parttime_prop", "noncollege_prop", var.include[2:length(var.include)])]
+
+trans <- na.omit(trans)
+corrplot(cor(trans), order = "AOE", type = "upper")
+
+
+# omit na values 
+grad <- na.omit(grad)
+# examine the correlation numbers of the newly created variables
+cor(trans[, c("log_median", "fulltime_yearround_prop", "college_prop", "low_wage_prop", "parttime_prop", "noncollege_prop")])
+
+```
+After looking at multicollinearity, we have further refined the list of variables that we will consider during our model selection process. 
+
+- We will not include "employed", "employed_fulltime", "employed_parttime", "employed_fulltime_yearround" because these are highly correlated, so we will include "fulltime_yearround_prop" as this variable has low correlation with other response variables and comes from a variable that is highly correlated with the variables "employed", "employed_fulltime", and "employed_parttime". This means that the included variable would capture the information of all the four variables that will be excluded. 
+- We will not include "unemployed" because this variable causes multicollinearity, and its information is captured by "unemployment rate". 
+- We will not include "college_jobs", "non_college_jobs", and "low_wage_jobs, as these are highly correlated with one another, and their information are captured by variables "college_prop" and "low_wage_prop". 
+- Among the transformed variables, we will not include "parttime_prop" and "noncollege_prop" as these variables are by definition highly correlated with variables "fulltime_yearround_prop" and "college_prop", respectively. Also, they are less relevant to our analysis as we are trying to predict the median income of fulltime, yearround workers. 
+
+
+```{r select_variables, echo = FALSE, results = "hide" }
+
+# selected variables before looking at correlations and transformations
+var.include
+
+# selected variables after looking at correlations 
+var.after_cor <- c("major_category", "sharewomen", "unemployment_rate", "log_median", "fulltime_yearround_prop", "college_prop", "low_wage_prop")
+```
+
+##3. Interactions
+
+The variable "sharewomen" and "fulltime_yearround_prop" seem to have some interesting interactions with the variable "major_category". 
+
+```{r coplots, echo = FALSE, warning = "hide"}
+
+
+# these co-plots do not contain some major categories because there are two few rows for each of those major categories
+
+# share women and median income 
+xyplot(log_median ~ sharewomen | major_category, data = grad[!(grad$major_category %in% c("Communications & Journalism", "Interdisciplinary", "Law & Public Policy")), ],
+       panel = function(x, y) {
+panel.xyplot(x, y, type = c("p", "smooth", "r"))
+})
+
+# unemployment and median income 
+xyplot(log_median ~ unemployment_rate | major_category, data = grad[!(grad$major_category %in% c("Communications & Journalism", "Interdisciplinary", "Law & Public Policy")), ],
+       panel = function(x, y) {
+panel.xyplot(x, y, type = c("p", "smooth", "r"))
+})
+
+# full time year round and median income 
+xyplot(log_median ~ fulltime_yearround_prop | major_category, data = grad[!(grad$major_category %in% c("Communications & Journalism", "Interdisciplinary", "Law & Public Policy")), ],
+       panel = function(x, y) {
+panel.xyplot(x, y, type = c("p", "smooth", "r"))
+})
+
+# low wage and median income
+xyplot(log_median ~ low_wage_prop | major_category, data = grad[!(grad$major_category %in% c("Communications & Journalism", "Interdisciplinary", "Law & Public Policy")), ],
+       panel = function(x, y) {
+panel.xyplot(x, y, type = c("p", "smooth", "r"))
+})
+
+# college jobs and median income
+xyplot(log_median ~ college_prop | major_category, data = grad[!(grad$major_category %in% c("Communications & Journalism", "Interdisciplinary", "Law & Public Policy")), ],
+       panel = function(x, y) {
+panel.xyplot(x, y, type = c("p", "smooth", "r"))
+})
+```

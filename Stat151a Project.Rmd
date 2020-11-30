@@ -30,5 +30,3 @@ crg["log_median"] <- log(crg$median)
 ```{r}
 ggplot(aes(x = major_category, y = log_median), data = crg) + geom_boxplot() + coord_flip()
 ```
-
-```

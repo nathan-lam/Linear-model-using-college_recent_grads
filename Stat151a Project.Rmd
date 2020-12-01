@@ -16,9 +16,7 @@ library(ggplot2) #plotting
 
 ```{r}
 crg <- college_recent_grads
-```
 
-```{r}
 cont <- select_if(crg, is.numeric)
 cont["college_job_prop"] <- cont$college_jobs / (cont$college_jobs + cont$non_college_jobs)
 cont["full_time_yearround_prop"] <- cont$employed_fulltime_yearround / cont$employed
@@ -30,3 +28,44 @@ crg["log_median"] <- log(crg$median)
 ```{r}
 ggplot(aes(x = major_category, y = log_median), data = crg) + geom_boxplot() + coord_flip()
 ```
+
+```{r Variable Selection}
+library(leaps)
+
+Y <- cont$median
+X <- as.matrix(subset(cont,select=-c(median, major_code, p25th, p75th)))
+
+#contains best model for different criteria
+model <- regsubsets(x = X, y = Y, method = "forward", nbest = 1) %>% summary()
+
+adjustr2 <- model$adjr2
+model$which[which.max(adjustr2),]
+
+BIC <- model$bic
+model$which[which.min(BIC),]
+
+mallow_Cp <- model$cp
+model$which[which.min(mallow_Cp),]
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

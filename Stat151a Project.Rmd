@@ -12,6 +12,8 @@ library(fivethirtyeight) #source of data
 library(corrplot) #correlation plot
 library(dplyr) #data frame manipulation
 library(ggplot2) #plotting
+library(leaps)#variable selection: adjr2, bic, cp
+library(olsrr)#variable selection: aic, p-val
 ```
 
 ```{r}
@@ -30,13 +32,12 @@ ggplot(aes(x = major_category, y = log_median), data = crg) + geom_boxplot() + c
 ```
 
 ```{r Variable Selection}
-library(leaps)#variable selection: adjr2, bic, cp
-library(olsrr)#variable selection: aic, p-val
+
 
 Y <- cont$median
 X <- as.matrix(subset(cont,select=-c(median, major_code, p25th, p75th)))
 
-#contains best model for different criteria
+#Forward Selection
 model <- regsubsets(x = X, y = Y, method = "forward", nbest = 1) %>% summary()
 
 adjustr2 <- model$adjr2
@@ -51,24 +52,46 @@ model$which[which.min(mallow_Cp),]
 
 ols_step_forward_aic(lm(Y~.,data=subset(cont,select=-c(median, major_code, p25th, p75th))), details = T)
 ols_step_forward_p(lm(Y~.,data=subset(cont,select=-c(median, major_code, p25th, p75th))), details = T)
+
+###################
+#Backward Selection
+
+model <- regsubsets(x = X, y = Y, method = "backward", nbest = 1) %>% summary()
+
+adjustr2 <- model$adjr2
+model$which[which.max(adjustr2),]
+
+BIC <- model$bic
+model$which[which.min(BIC),]
+
+mallow_Cp <- model$cp
+model$which[which.min(mallow_Cp),]
+
+ols_step_backward_aic(lm(Y~.,data=subset(cont,select=-c(median, major_code, p25th, p75th))), details = T)
+ols_step_backward_p(lm(Y~.,data=subset(cont,select=-c(median, major_code, p25th, p75th))), details = T)
+
+
 ```
 
 
 
 variables to include
 intercept
+total (Backward p-val)
 rank
-men (adjr2)
+men (Forward adjr2, Backward adjr2, Backward Cp, Backward AIC)
+women (Backward p-val)
 sharewomen
-low_wage_jobs (adjr2)
+low_wage_jobs (Forward adjr2, Backward adjr2, Backward Cp, Backward AIC)
 college_job_prop
 full_time_yearround_prop
 
+
 variables to exclude
-total
+total (Forward adjr2, Forward BIC, Forward Cp, Backward AIC)
 sample_size
-men (BIC, Cp)
-women
+men (Forward BIC, Forward Cp, Backward BIC)
+women (Forward adjr2, Forward BIC, Forward Cp, Backward AIC)
 employed
 employed_fulltime
 employed_parttime
@@ -77,11 +100,11 @@ unemployed
 unemployment_rate
 college_jobs
 non_college_jobs
-low_wage_jobs (BIC, Cp)
+low_wage_jobs (Forward BIC, Forward Cp, Backward Cp)
 
 
 
-have been selected for all methods
+have been selected by all methods
 rank
 sharewomen
 college_job_prop

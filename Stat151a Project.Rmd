@@ -15,6 +15,7 @@ library(ggplot2) #plotting
 library(leaps)#variable selection: adjr2, bic, cp
 library(olsrr)#variable selection: aic, p-val
 library(fastDummies)
+
 ```
 
 ```{r}
@@ -39,11 +40,10 @@ ggplot(aes(x = major_category, y = log_median), data = crg) + geom_boxplot() + c
 ```
 
 ```{r Variable Selection}
-
-
 Y <- as.matrix(crg$log_median)
 X <- as.matrix(subset(crg,select=-c(log_median,median, major_code, p25th, p75th, major)))
-
+# Check for linear dependencies, remove "men" or "total"
+alias(lm(Y~X))
 ```
 
 ```{r}
@@ -60,13 +60,11 @@ mallow_Cp <- model$cp
 model$which[which.min(mallow_Cp),]
 
 
-ols_step_forward_aic(lm(Y~.,data=subset(cont,select=-c(log_median,median, major_code, p25th, p75th))), details = T)
-ols_step_forward_p(lm(Y~.,data=subset(cont,select=-c(log_median,median, major_code, p25th, p75th))), details = T)
-
 ###################
 #Backward Selection
 
 model <- regsubsets(x = X, y = Y, method = "backward", nbest = 1) %>% summary()
+findDesp
 
 adjustr2 <- model$adjr2
 model$which[which.max(adjustr2),]
@@ -76,11 +74,6 @@ model$which[which.min(BIC),]
 
 mallow_Cp <- model$cp
 model$which[which.min(mallow_Cp),]
-
-ols_step_backward_aic(lm(Y~.,data=subset(cont,select=-c(log_median,median, major_code, p25th, p75th))), details = T)
-ols_step_backward_p(lm(Y~.,data=subset(cont,select=-c(log_median,median, major_code, p25th, p75th))), details = T)
-
-dumm
 ```
 
 

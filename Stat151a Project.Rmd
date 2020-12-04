@@ -14,6 +14,7 @@ library(dplyr) #data frame manipulation
 library(ggplot2) #plotting
 library(leaps)#variable selection: adjr2, bic, cp
 library(olsrr)#variable selection: aic, p-val
+library(fastDummies)
 ```
 
 ```{r}
@@ -25,7 +26,12 @@ cont["full_time_yearround_prop"] <- cont$employed_fulltime_yearround / cont$empl
 cont <- na.omit(cont)
 corrplot(cor(cont), type = "upper", order = "AOE")
 crg["log_median"] <- log(crg$median)
-crg
+crg["college_job_prop"] <- crg$college_jobs / (crg$college_jobs + crg$non_college_jobs)
+crg["full_time_yearround_prop"] <- crg$employed_fulltime_yearround / crg$employed
+crg <- na.omit(crg)
+
+crg <- dummy_cols(crg, select_columns = "major_category", remove_selected_columns = TRUE, remove_first_dummy = TRUE)
+
 ```
 
 ```{r}
@@ -35,9 +41,12 @@ ggplot(aes(x = major_category, y = log_median), data = crg) + geom_boxplot() + c
 ```{r Variable Selection}
 
 
-Y <- crg$log_median
-X <- as.matrix(subset(crg,select=-c(log_median,median, major_code, p25th, p75th)))
+Y <- as.matrix(crg$log_median)
+X <- as.matrix(subset(crg,select=-c(log_median,median, major_code, p25th, p75th, major)))
 
+```
+
+```{r}
 #Forward Selection
 model <- regsubsets(x = X, y = Y, method = "forward", nbest = 1) %>% summary()
 
@@ -71,7 +80,7 @@ model$which[which.min(mallow_Cp),]
 ols_step_backward_aic(lm(Y~.,data=subset(cont,select=-c(log_median,median, major_code, p25th, p75th))), details = T)
 ols_step_backward_p(lm(Y~.,data=subset(cont,select=-c(log_median,median, major_code, p25th, p75th))), details = T)
 
-
+dumm
 ```
 
 

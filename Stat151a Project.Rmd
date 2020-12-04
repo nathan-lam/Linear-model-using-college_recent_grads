@@ -15,12 +15,12 @@ library(ggplot2) #plotting
 library(leaps)#variable selection: adjr2, bic, cp
 library(olsrr)#variable selection: aic, p-val
 library(fastDummies)
-
+library(faraway)
+library(caret)
 ```
 
 ```{r}
 crg <- college_recent_grads
-
 cont <- select_if(crg, is.numeric)
 cont["college_job_prop"] <- cont$college_jobs / (cont$college_jobs + cont$non_college_jobs)
 cont["full_time_yearround_prop"] <- cont$employed_fulltime_yearround / cont$employed
@@ -30,9 +30,9 @@ crg["log_median"] <- log(crg$median)
 crg["college_job_prop"] <- crg$college_jobs / (crg$college_jobs + crg$non_college_jobs)
 crg["full_time_yearround_prop"] <- crg$employed_fulltime_yearround / crg$employed
 crg <- na.omit(crg)
-
 crg <- dummy_cols(crg, select_columns = "major_category", remove_selected_columns = TRUE, remove_first_dummy = TRUE)
-
+column_names <- make.names(names(crg),unique=TRUE)
+colnames(crg) <- column_names
 ```
 
 ```{r}
@@ -75,7 +75,11 @@ model$which[which.min(BIC),]
 mallow_Cp <- model$cp
 model$which[which.min(mallow_Cp),]
 ```
-
+```{r}
+# CV
+tc <- trainControl(method = "LOOCV")
+adjr2_cv <- 
+```
 
 
 variables to include

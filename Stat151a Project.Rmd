@@ -50,16 +50,15 @@ ggplot(aes(x = major_category, y = log_median), data = crg) + geom_boxplot() + c
 ```{r Variable Selection}
 Y <- as.matrix(crg$log_median)
 
-X <- as.matrix(subset(crg,select=-c(log_median,median, major_code, p25th, p75th, major, men)))
+X <- as.matrix(subset(crg,select=-c(log_median,median, major_code, p25th, p75th, major)))
 # Check for linear dependencies, remove "men" or "total"
 alias(lm(Y~X))
-
+X <- as.matrix(subset(crg,select=-c(log_median,median, major_code, p25th, p75th, major, men)))
 ```
 
 ```{r}
 #Forward Selection
 model <- regsubsets(x = X, y = Y, method = "forward", nbest = 1) %>% summary()
-
 
 adjustr2 <- model$adjr2
 BIC <- model$bic
@@ -79,7 +78,6 @@ adjustr2 <- model$adjr2
 BIC <- model$bic
 mallow_Cp <- model$cp
 cbind(model$which[which.max(adjustr2),], model$which[which.min(BIC),],model$which[which.min(mallow_Cp),])
-
 ```
 
 ### Cross Validation

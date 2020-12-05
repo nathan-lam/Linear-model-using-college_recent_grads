@@ -30,9 +30,17 @@ crg["log_median"] <- log(crg$median)
 crg["college_job_prop"] <- crg$college_jobs / (crg$college_jobs + crg$non_college_jobs)
 crg["full_time_yearround_prop"] <- crg$employed_fulltime_yearround / crg$employed
 crg <- na.omit(crg)
-crg <- dummy_cols(crg, select_columns = "major_category", remove_selected_columns = TRUE, remove_first_dummy = TRUE)
+
+
+
+crg <- dummy_cols(crg, select_columns = "major_category", remove_selected_col = TRUE,remove_first_dummy = TRUE)
 column_names <- make.names(names(crg),unique=TRUE)
 colnames(crg) <- column_names
+
+
+
+
+
 ```
 
 ```{r}
@@ -41,6 +49,7 @@ ggplot(aes(x = major_category, y = log_median), data = crg) + geom_boxplot() + c
 
 ```{r Variable Selection}
 Y <- as.matrix(crg$log_median)
+
 X <- as.matrix(subset(crg,select=-c(log_median,median, major_code, p25th, p75th, major, men)))
 # Check for linear dependencies, remove "men" or "total"
 alias(lm(Y~X))
@@ -51,14 +60,13 @@ alias(lm(Y~X))
 #Forward Selection
 model <- regsubsets(x = X, y = Y, method = "forward", nbest = 1) %>% summary()
 
+
 adjustr2 <- model$adjr2
-model$which[which.max(adjustr2),]
-
 BIC <- model$bic
-model$which[which.min(BIC),]
-
 mallow_Cp <- model$cp
-model$which[which.min(mallow_Cp),]
+
+
+cbind(model$which[which.max(adjustr2),], model$which[which.min(BIC),],model$which[which.min(mallow_Cp),])
 
 
 ###################
@@ -68,15 +76,13 @@ model <- regsubsets(x = X, y = Y, method = "backward", nbest = 1) %>% summary()
 
 
 adjustr2 <- model$adjr2
-model$which[which.max(adjustr2),]
-
 BIC <- model$bic
-model$which[which.min(BIC),]
-
 mallow_Cp <- model$cp
-model$which[which.min(mallow_Cp),]
+cbind(model$which[which.max(adjustr2),], model$which[which.min(BIC),],model$which[which.min(mallow_Cp),])
+
 ```
 
+### Cross Validation
 
 ```{r}
 # Backward Adjusted R-squared CV

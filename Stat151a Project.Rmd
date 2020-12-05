@@ -15,11 +15,12 @@ library(ggplot2) #plotting
 library(leaps)#variable selection: adjr2, bic, cp
 library(olsrr)#variable selection: aic, p-val
 library(fastDummies)
+library(faraway)
+library(caret)
 ```
 
 ```{r}
 crg <- college_recent_grads
-
 cont <- select_if(crg, is.numeric)
 cont["college_job_prop"] <- cont$college_jobs / (cont$college_jobs + cont$non_college_jobs)
 cont["full_time_yearround_prop"] <- cont$employed_fulltime_yearround / cont$employed
@@ -29,6 +30,7 @@ crg["log_median"] <- log(crg$median)
 crg["college_job_prop"] <- crg$college_jobs / (crg$college_jobs + crg$non_college_jobs)
 crg["full_time_yearround_prop"] <- crg$employed_fulltime_yearround / crg$employed
 crg <- na.omit(crg)
+<<<<<<< HEAD
 
 
 crg <- dummy_cols(crg, select_columns = "major_category", remove_selected_col = TRUE,remove_first_dummy = TRUE)
@@ -36,6 +38,11 @@ column_names <- make.names(names(crg),unique=TRUE)
 colnames(crg) <- column_names
 crg
 
+=======
+crg <- dummy_cols(crg, select_columns = "major_category", remove_selected_columns = TRUE, remove_first_dummy = TRUE)
+column_names <- make.names(names(crg),unique=TRUE)
+colnames(crg) <- column_names
+>>>>>>> 66957472faa5b0e0b32fc6c48ef95f88b265c0da
 ```
 
 ```{r}
@@ -43,11 +50,15 @@ ggplot(aes(x = major_category, y = log_median), data = crg) + geom_boxplot() + c
 ```
 
 ```{r Variable Selection}
-
-
 Y <- as.matrix(crg$log_median)
+<<<<<<< HEAD
 X <- as.matrix(subset(crg,select=-c(log_median,median, major_code, p25th, p75th, major, men)))
 
+=======
+X <- as.matrix(subset(crg,select=-c(log_median,median, major_code, p25th, p75th, major)))
+# Check for linear dependencies, remove "men" or "total"
+alias(lm(Y~X))
+>>>>>>> 66957472faa5b0e0b32fc6c48ef95f88b265c0da
 ```
 
 ```{r}
@@ -59,16 +70,21 @@ adjustr2 <- model$adjr2
 BIC <- model$bic
 mallow_Cp <- model$cp
 
+<<<<<<< HEAD
 cbind(model$which[which.max(adjustr2),], model$which[which.min(BIC),],model$which[which.min(mallow_Cp),])
 
+=======
+>>>>>>> 66957472faa5b0e0b32fc6c48ef95f88b265c0da
 ###################
 #Backward Selection
 
 model <- regsubsets(x = X, y = Y, method = "backward", nbest = 1) %>% summary()
+findDesp
 
 adjustr2 <- model$adjr2
 BIC <- model$bic
 mallow_Cp <- model$cp
+<<<<<<< HEAD
 
 cbind(model$which[which.max(adjustr2),], model$which[which.min(BIC),],model$which[which.min(mallow_Cp),])
 
@@ -100,8 +116,15 @@ f_adjr2_model_cv$results["RMSE"]
 f_BIC_model_cv$results["RMSE"]
 f_Cp_model_cv$results["RMSE"]
 
+=======
+model$which[which.min(mallow_Cp),]
+>>>>>>> 66957472faa5b0e0b32fc6c48ef95f88b265c0da
 ```
-
+```{r}
+# CV
+tc <- trainControl(method = "LOOCV")
+adjr2_cv <- 
+```
 
 
 variables to include

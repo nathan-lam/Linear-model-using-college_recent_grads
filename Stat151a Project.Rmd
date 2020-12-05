@@ -142,44 +142,40 @@ f_Cp_model_cv$results["RMSE"]
 ```
 
 
+```{r}
+#interactions
 
-variables to include
-intercept
-total (Backward p-val)
-rank
-men (Forward adjr2, Backward adjr2, Backward Cp, Backward AIC)
-women (Backward p-val)
-sharewomen
-low_wage_jobs (Forward adjr2, Backward adjr2, Backward Cp, Backward AIC)
-college_job_prop
-full_time_yearround_prop
+model <- lm(log_median ~ rank + unemployment_rate + 
+                          college_job_prop + major_category_Arts + 
+                         major_category_Engineering + 
+                         major_category_Humanities...Liberal.Arts, 
+                      data = crg)
+model1 <- lm(log_median ~ rank + unemployment_rate + 
+                          college_job_prop + major_category_Arts + 
+                         major_category_Engineering + 
+                         major_category_Humanities...Liberal.Arts + 
+                         college_job_prop*major_category_Arts, 
+                      data = crg)
+model2 <- lm(log_median ~ rank + unemployment_rate + 
+                          college_job_prop + major_category_Arts + 
+                         major_category_Engineering + 
+                         major_category_Humanities...Liberal.Arts + 
+                         college_job_prop*major_category_Arts + 
+                         college_job_prop*major_category_Engineering, 
+                      data = crg)
 
+model3 <- lm(log_median ~ rank + unemployment_rate + 
+                          college_job_prop + major_category_Arts + 
+                         major_category_Engineering + 
+                         major_category_Humanities...Liberal.Arts + 
+                         college_job_prop*major_category_Arts + 
+                         college_job_prop*major_category_Engineering + 
+                   college_job_prop*major_category_Humanities...Liberal.Arts, 
+                      data = crg)
 
-variables to exclude
-total (Forward adjr2, Forward BIC, Forward Cp, Backward AIC)
-sample_size
-men (Forward BIC, Forward Cp, Backward BIC)
-women (Forward adjr2, Forward BIC, Forward Cp, Backward AIC)
-employed
-employed_fulltime
-employed_parttime
-employed_fulltime_yearround
-unemployed
-unemployment_rate
-college_jobs
-non_college_jobs
-low_wage_jobs (Forward BIC, Forward Cp, Backward Cp)
+anova(model, model1, model2, model3)
 
-
-
-have been selected by all methods
-rank
-sharewomen
-college_job_prop
-full_time_yearround_prop
-
-> Forward Mallow's Cp
-
+```
 
 
 

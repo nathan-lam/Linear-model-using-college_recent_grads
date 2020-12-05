@@ -24,13 +24,17 @@ cont <- select_if(crg, is.numeric)
 cont["college_job_prop"] <- cont$college_jobs / (cont$college_jobs + cont$non_college_jobs)
 cont["full_time_yearround_prop"] <- cont$employed_fulltime_yearround / cont$employed
 cont <- na.omit(cont)
-corrplot(cor(cont), type = "upper", order = "AOE")
+# corrplot(cor(cont), type = "upper", order = "AOE")
 crg["log_median"] <- log(crg$median)
 crg["college_job_prop"] <- crg$college_jobs / (crg$college_jobs + crg$non_college_jobs)
 crg["full_time_yearround_prop"] <- crg$employed_fulltime_yearround / crg$employed
 crg <- na.omit(crg)
 
-crg <- dummy_cols(crg, select_columns = "major_category", remove_selected_columns = TRUE, remove_first_dummy = TRUE)
+
+crg <- dummy_cols(crg, select_columns = "major_category", remove_selected_col = TRUE,remove_first_dummy = TRUE)
+column_names <- make.names(names(crg),unique=TRUE)
+colnames(crg) <- column_names
+crg
 
 ```
 
@@ -42,7 +46,7 @@ ggplot(aes(x = major_category, y = log_median), data = crg) + geom_boxplot() + c
 
 
 Y <- as.matrix(crg$log_median)
-X <- as.matrix(subset(crg,select=-c(log_median,median, major_code, p25th, p75th, major)))
+X <- as.matrix(subset(crg,select=-c(log_median,median, major_code, p25th, p75th, major, men)))
 
 ```
 
@@ -50,18 +54,12 @@ X <- as.matrix(subset(crg,select=-c(log_median,median, major_code, p25th, p75th,
 #Forward Selection
 model <- regsubsets(x = X, y = Y, method = "forward", nbest = 1) %>% summary()
 
+
 adjustr2 <- model$adjr2
-model$which[which.max(adjustr2),]
-
 BIC <- model$bic
-model$which[which.min(BIC),]
-
 mallow_Cp <- model$cp
-model$which[which.min(mallow_Cp),]
 
-
-ols_step_forward_aic(lm(Y~.,data=subset(cont,select=-c(log_median,median, major_code, p25th, p75th))), details = T)
-ols_step_forward_p(lm(Y~.,data=subset(cont,select=-c(log_median,median, major_code, p25th, p75th))), details = T)
+cbind(model$which[which.max(adjustr2),], model$which[which.min(BIC),],model$which[which.min(mallow_Cp),])
 
 ###################
 #Backward Selection
@@ -69,18 +67,39 @@ ols_step_forward_p(lm(Y~.,data=subset(cont,select=-c(log_median,median, major_co
 model <- regsubsets(x = X, y = Y, method = "backward", nbest = 1) %>% summary()
 
 adjustr2 <- model$adjr2
-model$which[which.max(adjustr2),]
-
 BIC <- model$bic
-model$which[which.min(BIC),]
-
 mallow_Cp <- model$cp
-model$which[which.min(mallow_Cp),]
 
-ols_step_backward_aic(lm(Y~.,data=subset(cont,select=-c(log_median,median, major_code, p25th, p75th))), details = T)
-ols_step_backward_p(lm(Y~.,data=subset(cont,select=-c(log_median,median, major_code, p25th, p75th))), details = T)
+cbind(model$which[which.max(adjustr2),], model$which[which.min(BIC),],model$which[which.min(mallow_Cp),])
 
-dumm
+
+###################
+#Cross validation
+training <- trainControl(method="LOOCV")
+
+# f_adjr2_model_cv <- train(log_median ~ rank + unemployment_rate + 
+#                           college_job_prop + major_category_Arts + 
+#                           major_category_Biology...Life.Science  + 
+#                           major_category_Engineering  + 
+#                           major_category_Humanities...Liberal.Arts  + 
+#                           major_category_Industrial.Arts...Consumer.Services , 
+#                           data = crg, emthod = "lm", trControl = training)
+# 
+# 
+# f_BIC_model_cv <- train(log_median ~ rank + college_job_prop + 
+#                           major_category_Engineering, 
+#                       data = crg, emthod = "lm", trControl = training)
+
+f_Cp_model_cv <- train(log_median ~ rank + unemployment_rate + 
+                          college_job_prop + major_category_Arts + 
+                         major_category_Engineering + 
+                         major_category_Humanities...Liberal.Arts, 
+                      data = crg, emthod = "lm", trControl = training)
+
+f_adjr2_model_cv$results["RMSE"]
+f_BIC_model_cv$results["RMSE"]
+f_Cp_model_cv$results["RMSE"]
+
 ```
 
 

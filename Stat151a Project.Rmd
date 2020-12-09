@@ -38,26 +38,22 @@ column_names <- make.names(names(crg),unique=TRUE)
 colnames(crg) <- column_names
 
 
-set.seed(11)
-#randomly take 2:8 of data for training
-training_size <- sample(dim(crg)[1],nrow(crg)*0.8)
-training_data <- crg[training_size,]
-testing_data <- crg[-training_size,]
+
 
 
 ```
 
 ```{r}
-ggplot(aes(x = major_category, y = log_median), data = training_data) + geom_boxplot() + coord_flip()
+ggplot(aes(x = major_category, y = log_median), data = crg) + geom_boxplot() + coord_flip()
 ```
 
 ```{r Variable Selection}
-Y <- as.matrix(training_data$log_median)
+Y <- as.matrix(crg$log_median)
 
-X <- as.matrix(subset(training_data,select=-c(log_median,median, major_code, p25th, p75th, major)))
+X <- as.matrix(subset(crg,select=-c(log_median,median, major_code, p25th, p75th, major)))
 # Check for linear dependencies, remove "men" or "total"
 alias(lm(Y~X))
-X <- as.matrix(subset(training_data,select=-c(log_median,median, major_code, p25th, p75th, major, men)))
+X <- as.matrix(subset(crg,select=-c(log_median,median, major_code, p25th, p75th, major, men)))
 ```
 
 ```{r}
@@ -82,7 +78,6 @@ adjustr2 <- model$adjr2
 BIC <- model$bic
 mallow_Cp <- model$cp
 cbind(model$which[which.max(adjustr2),], model$which[which.min(BIC),],model$which[which.min(mallow_Cp),])
-
 ```
 
 ### Cross Validation
@@ -90,101 +85,62 @@ cbind(model$which[which.max(adjustr2),], model$which[which.min(BIC),],model$whic
 ```{r}
 # Backward Adjusted R-squared CV
 tc <- trainControl(method = "LOOCV")
-b_adjr2_mod_cv <- train(log_median ~ total + sample_size + sharewomen + 
-                          employed + college_job_prop +
+b_adjr2_mod_cv <- train(log_median ~ employed + employed_fulltime_yearround + 
+                          college_job_prop +
                           major_category_Biology...Life.Science+
                           major_category_Computers...Mathematics + 
-                          major_category_Physical.Sciences, 
-                          data = training_data, method = "lm",trControl = tc)
+                          rank + sharewomen + major_category_Engineering , data = crg, method = "lm",
+               trControl = tc)
 b_adjr2_mod_cv$results["RMSE"]
 ```
 
 
 ```{r}
 # Backward BIC CV
-b_bic_mod_cv <- train(log_median ~ rank + sharewomen + college_job_prop +  
-                      major_category_Computers...Mathematics, 
-                     data = training_data , 
-                     method = "lm", trControl = tc)
-  
+b_bic_mod_cv <- train(log_median ~ rank + college_job_prop +  major_category_Engineering, data = crg, method = "lm", trControl = tc )
 b_bic_mod_cv$results["RMSE"]
 ```
 
 ```{r}
 # Backward Mallow's Cp CV
-b_cp_mod_cv <- train(log_median ~ rank + sharewomen + college_job_prop +  
-                       major_category_Biology...Life.Science + 
-                       major_category_Computers...Mathematics, 
-                     data = training_data, method = "lm", trControl = tc)
+b_cp_mod_cv <- train(log_median ~ employed + employed_fulltime_yearround + 
+                       college_job_prop +  major_category_Biology...Life.Science
+                     + major_category_Computers...Mathematics + rank +
+                       major_category_Engineering + sharewomen , data = crg , 
+                     method = "lm", trControl = tc)
 b_cp_mod_cv$results["RMSE"]
 ```
 
 
 ```{r}
 # Forward Adjusted R-squared CV
-f_adjr2_model_cv <- train(log_median ~ rank + sharewomen + 
+f_adjr2_model_cv <- train(log_median ~ rank + unemployment_rate + 
                            college_job_prop + major_category_Arts + 
-                           major_category_Computers...Mathematics + 
+                           major_category_Biology...Life.Science  + 
                            major_category_Engineering  + 
                            major_category_Humanities...Liberal.Arts  + 
                            major_category_Industrial.Arts...Consumer.Services , 
-                           data = training_data, method = "lm", trControl = tc)
+                           data = crg, method = "lm", trControl = tc)
 
 f_adjr2_model_cv$results["RMSE"]
 
 # Forward BIC CV
 f_BIC_model_cv <- train(log_median ~ rank + college_job_prop + 
                            major_category_Engineering, 
-                       data = training_data, method = "lm", trControl = tc)
+                       data = crg, method = "lm", trControl = tc)
 
 f_BIC_model_cv$results["RMSE"]
 
 # Forward Mallow's Cp CV
-f_Cp_model_cv <- train(log_median ~ rank + college_job_prop + 
-                         major_category_Arts + 
+f_Cp_model_cv <- train(log_median ~ rank + unemployment_rate + 
+                          college_job_prop + major_category_Arts + 
                          major_category_Engineering + 
-                         major_category_Humanities...Liberal.Arts + 
-                         major_category_Industrial.Arts...Consumer.Services, 
-                      data = training_data, method = "lm", trControl = tc)
+                         major_category_Humanities...Liberal.Arts, 
+                      data = crg, method = "lm", trControl = tc)
 
 f_Cp_model_cv$results["RMSE"]
-
-
-
-
-
-
 ```
 
-
-```{r}
-#checking for overfitting
-
-adjr2_model <- lm(log_median ~ rank + sharewomen + 
-                           college_job_prop + major_category_Arts + 
-                           major_category_Computers...Mathematics + 
-                           major_category_Engineering  + 
-                           major_category_Humanities...Liberal.Arts  + 
-                           major_category_Industrial.Arts...Consumer.Services , 
-                           data = training_data)
-
-f_Cp_model <- lm(log_median ~ rank + college_job_prop + 
-                         major_category_Arts + 
-                         major_category_Engineering + 
-                         major_category_Humanities...Liberal.Arts + 
-                         major_category_Industrial.Arts...Consumer.Services, 
-                         data = training_data)
-
-f_adjr2_model_predict <- predict(adjr2_model, newdata = testing_data, type = "response")
-sum((testing_data$log_median-f_adjr2_model_predict)^2)
-cor(f_adjr2_model_predict, testing_data$log_median)**2
-
-f_Cp_model_predict <- predict(f_Cp_model, newdata = testing_data, type = "response")
-sum((testing_data$log_median-f_Cp_model_predict)^2)
-cor(f_Cp_model_predict, testing_data$log_median)**2
-
-
-```
 
 ```{r}
 #interactions
@@ -193,20 +149,20 @@ model <- lm(log_median ~ rank + unemployment_rate +
                           college_job_prop + major_category_Arts + 
                          major_category_Engineering + 
                          major_category_Humanities...Liberal.Arts, 
-                      data = training_data)
+                      data = crg)
 model1 <- lm(log_median ~ rank + unemployment_rate + 
                           college_job_prop + major_category_Arts + 
                          major_category_Engineering + 
                          major_category_Humanities...Liberal.Arts + 
                          college_job_prop*major_category_Arts, 
-                      data = training_data)
+                      data = crg)
 model2 <- lm(log_median ~ rank + unemployment_rate + 
                           college_job_prop + major_category_Arts + 
                          major_category_Engineering + 
                          major_category_Humanities...Liberal.Arts + 
                          college_job_prop*major_category_Arts + 
                          college_job_prop*major_category_Engineering, 
-                      data = training_data)
+                      data = crg)
 
 model3 <- lm(log_median ~ rank + unemployment_rate + 
                           college_job_prop + major_category_Arts + 
@@ -215,7 +171,7 @@ model3 <- lm(log_median ~ rank + unemployment_rate +
                          college_job_prop*major_category_Arts + 
                          college_job_prop*major_category_Engineering + 
                    college_job_prop*major_category_Humanities...Liberal.Arts, 
-                      data = training_data)
+                      data = crg)
 
 anova(model, model1, model2, model3)
 

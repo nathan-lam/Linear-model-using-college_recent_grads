@@ -342,3 +342,67 @@ interactions_no_outliers.rmse <- interactions_no_outliers$results[, "RMSE"]
 interactions_no_outliers.rmse
 ```
 
+
+
+```{r Bootstrap}
+#bootstrap for confidence interval
+modeling <- lm(log_median ~
+                        rank + sharewomen +
+                        employed + employed_fulltime_yearround +
+                        college_job_prop +
+                        major_category_Biology...Life.Science+
+                        major_category_Computers...Mathematics +
+                        major_category_Engineering +
+                        major_category_Engineering * rank +
+                        major_category_Engineering * sharewomen,
+                      data = training_data[-c(14, 33, 74, 87),])
+#setting up nonparametric bootstrap
+set.seed(11)
+crg_data <- as.matrix(subset(crg,select=-c(median, major_code, p25th, p75th, major)))
+sampling_size <- sample(dim(crg_data)[1],nrow(crg_data)*0.5)
+sample_dist <- data.frame(crg_data[sampling_size,])
+any(is.na(sample_dist))
+#bootstrap function
+get_coef_resample <- function(){
+   #makes a resample from sample dist
+   resample <- sample_n(sample_dist, size = nrow(sample_dist),replace = TRUE)
+   slopes <- lm(log_median ~
+                        rank + sharewomen +
+                        employed + employed_fulltime_yearround +
+                        college_job_prop +
+                        major_category_Biology...Life.Science+
+                        major_category_Computers...Mathematics +
+                        major_category_Engineering +
+                        major_category_Engineering * rank +
+                        major_category_Engineering * sharewomen,
+                      data = resample) %>% coef()
+   return(slopes)
+}
+nonpara_slopes <- t(replicate(1000,get_coef_resample()))
+#nonpara_slopes[,8] #math coef has na values
+as.data.frame(nonpara_slopes)
+any(is.na(nonpara_slopes)) #checking if there're any NA
+nonpara_slopes <- na.omit(nonpara_slopes) #removing na values
+for(i in 1:ncol(nonpara_slopes)){hist(nonpara_slopes[,i])} #hist of each coef
+summary(modeling)
+nrow(nonpara_slopes)
+col_CI = 1
+CI <- nonpara_slopes[order(nonpara_slopes[,col_CI]),]
+cbind(CI[25,col_CI],modeling$coefficients[col_CI],CI[975,col_CI])
+#checking if model is in 95% CI
+is_in_CI <- NULL
+for(i in 1:ncol(nonpara_slopes)){
+   CI <- nonpara_slopes[order(nonpara_slopes[,i]),] #orders data based on ith col
+   
+   print(CI[25,i],CI[975,i])
+   if(CI[25,i] <= modeling$coefficients[i] & modeling$coefficients[i] <= CI[975,i]){
+      is_in_CI <- c(TRUE,is_in_CI)
+   } else {
+      is_in_CI <- c(FALSE,is_in_CI)
+   }
+}
+modeling %>% summary()
+```
+
+
+

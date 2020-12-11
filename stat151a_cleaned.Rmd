@@ -26,19 +26,20 @@ library(caret)
 
 # load data
 crg <- college_recent_grads
-
+crg <- na.omit(crg)
 # viewing correlations 
-cont <- select_if(crg, is.numeric)
-cont["college_job_prop"] <- cont$college_jobs / (cont$college_jobs + cont$non_college_jobs)
-cont["full_time_yearround_prop"] <- cont$employed_fulltime_yearround / cont$employed
-cont <- na.omit(cont)
-corrplot(cor(cont), type = "upper", order = "AOE")
-
-# transform data
 crg["log_median"] <- log(crg$median)
 crg["college_job_prop"] <- crg$college_jobs / (crg$college_jobs + crg$non_college_jobs)
 crg["full_time_yearround_prop"] <- crg$employed_fulltime_yearround / crg$employed
 crg <- na.omit(crg)
+cont <- select_if(crg, is.numeric)
+cont <- na.omit(cont)
+corrplot(cor(cont), type = "upper", order = "AOE")
+
+# transform data
+standardized <- data.frame(scale(cont))
+major_category <- crg$major_category
+crg <- cbind(standardized, major_category)
 
 # temporary data frame to use later 
 temp <- crg 
@@ -70,10 +71,10 @@ ggplot(aes(x = major_category, y = log_median), data = temp) + geom_boxplot() + 
 ```{r prepare_data_for_selection}
 Y <- as.matrix(crg$log_median)
 
-X <- as.matrix(subset(crg,select=-c(log_median,median, major_code, p25th, p75th, major)))
+X <- as.matrix(subset(crg,select=-c(log_median,median, major_code, p25th, p75th)))
 # Check for linear dependencies, remove "men" or "total"
 alias(lm(Y~X))
-X <- as.matrix(subset(crg,select=-c(log_median,median, major_code, p25th, p75th, major, men)))
+X <- as.matrix(subset(crg,select=-c(log_median,median, major_code, p25th, p75th,  men)))
 ```
 
 
@@ -201,7 +202,7 @@ data.frame(criterias, forward.rmse, backward.rmse)
 ### Variable selection with interactions 
 
 
-```{r coplots}
+```{r coplots, warning=FALSE, message=FALSE}
 #interactions
 
 # these co-plots do not contain some major categories because there are two few rows for each of those major categories
@@ -240,6 +241,8 @@ panel.xyplot(x, y, type = c("p", "smooth", "r"))
 
 
 ```
+
+
 ```{r full_model_interactions}
 # model selected from backward/forward selection 
 model.backfor <- lm(log_median ~ employed + employed_fulltime_yearround + 

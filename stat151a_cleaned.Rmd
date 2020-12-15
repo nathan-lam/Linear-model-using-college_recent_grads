@@ -281,28 +281,6 @@ backward.rmse <- c(b_adjr2_mod_cv.rmse, b_bic_mod_cv.rmse, b_cp_mod_cv.rmse)
 data.frame(criterias, forward.rmse, backward.rmse)
 ```
 
-```{r experiment}
-
-table(college_recent_grads$major_category)
-colnames(crg)
-model.experiment <- train(log_median ~ employed + employed_fulltime_yearround + 
-                          college_job_prop +
-                          major_category_Biology...Life.Science+
-                             major_category_Business+
-                          major_category_Computers...Mathematics + 
-                             major_category_Education + 
-                             major_category_Health + 
-                             major_category_Psychology...Social.Work + 
-                             major_category_Humanities...Liberal.Arts + 
-                             major_category_Physical.Sciences + 
-                             major_category_Arts + 
-                          rank + sharewomen + major_category_Engineering, 
-                    data = training_data, method = "lm", trControl = tc)
-
-model.experiment$results[,"RMSE"]
-model.experiment_rsme
-```
-
 #### Variable selection with interactions 
 
 To examine possible interaction terms, we look at coplots, created on the training data set with standardized continuous variables. The coplots show that `sharewomen` and `employed_fulltime_yearround` seem to have interactions with `major_category`. However, these coplots are inconclusive, so we will run an Analysis of Variance test to determine which interaction terms to keep. 

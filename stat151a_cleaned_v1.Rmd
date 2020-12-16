@@ -1,7 +1,6 @@
 ---
 title: "What kind of median earnngs to expect from a type of major"
 author: "Kelly Trinh, Hanfei Sun, and Nathan Lam"
-date: "12/11/2020"
 output: html_document
 ---
 
@@ -14,14 +13,14 @@ Not all college students are informed about how the choice of their major can im
 
 **Given a major category, what factors contribute to how high my median income as a full-time, year-round worker?**
 
-We will be building an OLS model to explain the association between major category and median income.
+We will be building an linear regression model to find an association between major category and median income.
 
 #### Dataset 
-The dataset we use is the recent-grad dataset from fivethirtyeight. 
+The dataset we used is the recent-grad dataset from the fivethirtyeight package. 
 https://www.rdocumentation.org/packages/fivethirtyeight/versions/0.6.1/topics/college_recent_grads
 
 It contains income and other information about 16 different major categories.
-Below is a detailed description of each variable: 
+Below is a detailed description of each variable given in the dataset: 
 
 |Header            |	Description                                   |
 |------------------|------------------------------------------------|
@@ -33,7 +32,7 @@ Below is a detailed description of each variable:
 `Sample_size` |	Sample size of full-time, year-round
 `Men`	| Male graduates
 `Women`	| Female graduates
-`ShareWomen` |	Women as share of total
+`ShareWomen` |	Proportion of women
 `Employed` |	Number employed 
 `Full_time`	| Employed 35 hours or more
 `Part_time` |	Employed less than 35 hours
@@ -54,21 +53,29 @@ The selected model we chose includes the following variables, with the two last 
 `rank`,`sharewomen`,`employed`, `employed_fulltime_yearround`, `college_job_prop`, 
 `major_category_Biology...Life.Science`, `major_category_Computers...Mathematics`, `major_category_Engineering`, `major_category_Engineering * rank`, and `major_category_Engineering * sharewomen`.
 
-We arrived at the final model by performing two round of variable selection. The first round we only consider the existing variables (no interaction terms) using a combination of forward selection, backward selection, and leave-one-out cross validation LOOCV. The second round we considered interaction terms and used the Analysis of Variance test to determine which terms we should keep in the model. Our diagnostic plots and bootstrap distributions of the coefficients show that the data met the assumption of constant variance in the errors, linearity, and normality. Therefore, we decide that an OLS model is sufficient after removing some points with high influence.  
+
+**(alternate)**
+\[log_median ~ rank + sharewomen + employed + employed_fulltime_yearround + college_job_prop + major_category_Biology...Life.Science + major_category_Computers...Mathematics + major_category_Engineering + major_category_Engineering * rank + major_category_Engineering * sharewomen\]
+
+We arrived at the final model by performing two round of variable selection. The first round we only consider the existing variables (no interaction terms) using a combination of forward selection, backward selection, and leave-one-out cross validation (LOOCV). The second round we considered interaction terms and used the Analysis of Variance test to determine which terms we should keep in the model. Our diagnostic plots and bootstrap distributions of the coefficients show that the data sufficiently meets the assumption linear regression involving constant variance in the errors, linearity, and normality. Therefore, we decide that an OLS model is sufficient after removing some points with high influence.  
 
 ## Model results and limitations 
 
-Coefficient interpretations: 
+Coefficient interpretations: **(insert here)**
 
 
 
 Here are some limitations of our model: 
 
+(model only cares about which model influences higher pay, not a comparison between majors)
 1. Our final model only contain 3 out of 16 major categories. Therefore, if a student want to know about how major categories not included in the model variables are compared, the model will not provide that information. For example, if the student wants to know how major categories `Social Science` or `Health` compares, the model will not give much information. 
 
-2. The two methods of variable selection (backward/forward versus Analysis of Variance/ANOVA) each do not guarantee to select the best subset of explanatory variables. Backward/forward selection add variable step-wise, so it behaves more as a local optimizer than a global optimizer. The ANOVA test relies on the assumption that the data obeys the normality assumption, and since it utilizes p-values, there is a possibility of wrongly rejecting the null.  
+2. The two methods of variable selection (backward/forward versus Analysis of Variance/ANOVA) each do not guarantee to select the best subset of explanatory variables. Backward/forward selection add variable step-wise, so it behaves more as a local optimizer than a global optimizer. The ANOVA test relies on the assumption that the data behaves in a normal distribution, and since it utilizes p-values, there is a possibility of wrongly rejecting the null.  
 
 3. For each major category there’s only around 5-15 rows, some majors such as `Interdisciplinary` only have 1 row. The results of the model may be more reliable if there is more rows per major category. 
+
+**(alternate)**
+3. Each major category is not equally represented proportionally, some majors such as `Interdisciplinary` only have 1 row. The results of the model may be more reliable if there is more rows per major category.
 
 4. The model doesn't explain the following confounding variables:
 - The universities the students attend: some universities have stronger connections to certain industries or are located in more advantageous locations. For example, UC Berkeley has strong connections with Silicon Valley, meaning that computer science and technology students may have better chances to land higher paying jobs. On the other hand, Arts students at Berkeley would not have the same advantages. 
@@ -76,7 +83,16 @@ Here are some limitations of our model:
 - Financial background of the students: students from higher-income families tend to be more well-equipped to land a high-paying job early in their careers. 
 - The industries the student go to: some students may not choose to go to an unrelated compared to their major. For example, an Arts student choose to work in an investment banking firm such as JP Morgan will have very different salaries compared to an Arts student who becomes an architect.
 
+**(alternate)**
+-Context can heavily influence a student's trajectory. Things like financial background, location of university, and type of university can offer students more or less resources needed for better chances of higher pay and thus can influence median income.
+
 5. Other model-building methods we should consider include: finding a better way to treat NaN values instead of omitting them, trying alternative cross-validation methods (such as k-fold cross validation), and considering non-linear models (our diagnostics show that our data show linearity but our analysis will be more rigorous if we compare our OLS model and non-linear models).
+
+**(alternate)**
+5. Alternative steps future studies can make:
+- change method on dealing with missing values; filling in missing values instead of omitting them.
+- Change method of cross validation
+- Consider nonlinear model
 
 ## Conclusions on main findings 
 
@@ -120,7 +136,7 @@ Here are some modifications we did to our data:
 5. We also performed a test-train split; the test set will be used to guard against overfitting and to build prediction intervals. 
 
 
-```{r data_cleaning, echo = F}
+```{r data_cleaning, echo = F, fig.cap = "Figure 1: Correlation Heat Map", out.width = "50%",fig.align='center'}
 # load data
 crg <- college_recent_grads
 crg <- na.omit(crg)
@@ -132,7 +148,7 @@ crg["full_time_yearround_prop"] <- crg$employed_fulltime_yearround / crg$employe
 crg <- na.omit(crg)
 cont <- select_if(crg, is.numeric)
 cont <- na.omit(cont)
-#corrplot(cor(cont), type = "upper", order = "AOE")
+
 
 #correlation between continuous variables
 corrrr <- reshape2::melt(cor(cont), 
@@ -146,7 +162,8 @@ ggplot(corrrr, aes(variables1, variables2, fill = Correlation)) +
                        mid="white",
                        midpoint = 0, limit = c(-1,1), space = "Lab", 
                        name="Correlation") +
-  ggtitle("Figure 1 \nCorrelation Heat Map") + 
+  labs(x="",y="",title = "Correlation Heat Map",
+       caption ="Figure 1") + 
   theme(axis.text.x = element_text(angle = 45, vjust = 1, 
     size = 12, hjust = 1), plot.title = element_text(hjust = 0.5))
 
@@ -173,14 +190,20 @@ training_data <- crg[training_size,]
 testing_data <- crg[-training_size,]
 
 ```
-We also created an overview of the distribution of median incomes from different major categories. 
-```{r visualizations, echo = F }
+  
+We also created an overview of the distribution of median incomes from different major categories.  
+```{r visualizations, echo = F, out.width = "50%",fig.align='center'}
 
 # major category versus median income 
-ggplot(aes(x = major_category, y = log_median), data = temp) + geom_boxplot() + coord_flip()
+ggplot(aes(x = major_category, y = log_median), data = temp) + 
+   geom_boxplot() + 
+   coord_flip() +
+   labs(title = "Major category vs median income", 
+        caption = "Figure 2")
 
 ```
 
+**(needs improement)**
 Looking at Figure 1, there are a lot of variables highly correlated with each other, particularly for variables that are already similar to each other, like type of job or type of employment. High correlation can be good to help explain median income, but it also comes with the risk of collinearity. In Figure 2, we look at how log_median is spread out among various major categories. The most apparent thing is seeing how much money Engineering gets. If a category 
   
 Using the alias function on a lm object with all variables reveals which variables are collinear, this turned out to be the variables total and men. We removed men as well as the variables major_code, p25th, and p75th as they do not benefit the model.
@@ -258,7 +281,7 @@ b_cp_picked[b_cp_picked == TRUE]
 
 ```
 
-```{r forward_backward_visualized, echo = F}
+```{r forward_backward_visualized, echo = F, fig.cap = "Figure 3: Progression of variable selection"}
 par(mfrow=c(2,3))
 plot(f_adjustr2, xlab = "Number of variables",ylab = "Forward Adjusted R squared", type = "l")
 points(which.max(f_adjustr2), max(f_adjustr2), col = "red")
@@ -275,6 +298,7 @@ plot(b_mallow_Cp, xlab = "Number of variables",ylab = "Backward Mallow's Cp", ty
 points(which.min(b_mallow_Cp), min(b_mallow_Cp), col = "red")
 mtext("Forward Variable Selection",side=3,line=-2,outer=TRUE)
 mtext("Backward Variable Selection",side=3,line=-22,outer=TRUE)
+
 
 ```
 
@@ -421,6 +445,7 @@ panel.xyplot(x, y, type = c("p", "smooth", "r"))
 
 
 ```
+  
 We will keep all the original terms (not interaction terms) and will use the Analysis of Variance test to determine which interaction terms to add. This test, unlike the coplots shown above, show that interaction terms `rank:major_category_Engineering` and `sharewomen:major_category_Engineering` have significant p-values. We will include those variables in our final selected model. 
 
 ```{r full_model_interactions, include = F}
@@ -505,10 +530,11 @@ After considering the interaction terms, the selected model we chose includes th
 
 We then perform diagnostics on outliers and assumptions. From the `Residuals vs Fitted` and `Scale-Location` plots, we see that there's no pattern in the studentized residuals against the fitted values, so we conclude that the response variable has a quite linear relationship with the explanatory variables, and the errors have constant residuals. Based on the `QQ plot`, we see that most of the data lines around the theoretical line well, meaning that the response variable is somewhat normally distributed. However, according to the `Residuals vs Leverage` plot, there are some outliers with higher Cook's distance, notably. Below, we fitted the model selected above without these points. We calculate the LOOCV RMSE of this new model. 
 
-```{r diagnostics_plot, echo = F}
+```{r diagnostics_plot, echo = F, fig.cap = "Figure 5: Diagnosis plots"}
 par(mfrow=c(2,2))
 plot(model.inter_reduced)
 ```
+
 ```{r outliers_diagnostics, echo = F}
 # outlier rows 
 training_data[c(14, 33, 74, 87),]
@@ -599,7 +625,6 @@ sample_dist <- data.frame(crg_data[sampling_size,])
 any(is.na(sample_dist))
 
 
-any(is.na(sample_dist))
 
 #bootstrap function
 get_coef_resample <- function(){

@@ -355,11 +355,11 @@ model.backfor <- lm(log_median ~ employed + employed_fulltime_yearround +
 model.backfor_predict <- predict(model.backfor, newdata = testing_data, type = "response")
 
 # sum of error squared 
-sum((testing_data$log_median - model.backfor_predict)^2)
+SSR <- sum((testing_data$log_median - model.backfor_predict)^2)
 cat("Sum of Errors Squared: ", SSR)
 
 # correlation between actual values and predicted values 
-cor(model.backfor_predict, testing_data$log_median)**2
+cor_predict <- cor(model.backfor_predict, testing_data$log_median)**2
 cat("Correlation between the predicted values and actual values: ", cor_predict)
 
 ```

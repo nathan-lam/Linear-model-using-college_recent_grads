@@ -1,38 +1,24 @@
 ---
-title: "stat151a_cleaned"
-author: "Kelly Trinh"
-date: "12/11/2020"
-output: html_document
+title: "What kind of median earnngs to expect from a type of major"
+author: "Kelly Trinh, Hanfei Sun, and Nathan Lam"
+output:
+  html_document:
+    df_print: paged
 ---
 
 
 
-
-Exploring data + cleaning data (EDA)
-	Correlation
-	Interaction
-	Bivariate distribution
-How we got the model (variable selection)
-Diagnostics + Assessment
-Interpretation + Application
-Prediction
-Bootstrap
-Conclusion
-drawbacks
-	How to improve
-
-
+\newpage
 
 
 ```{r setup, echo = FALSE, message=FALSE, warning=FALSE}
-library(fivethirtyeight) #source of data
-library(corrplot) #correlation plot
-library(dplyr) #data frame manipulation
-library(ggplot2) #plotting
+library(fivethirtyeight)#source of data
+library(corrplot)#correlation plot
+library(dplyr)#data frame manipulation
+library(ggplot2)#plotting
 library(leaps)#variable selection: adjr2, bic, cp
-library(olsrr)#variable selection: aic, p-val
-library(car) # Anova
-library(fastDummies)
+library(car)#Anova
+library(fastDummies)#dummy variables
 library(faraway)
 library(caret)
 ```
@@ -84,14 +70,14 @@ Here are some modifications we did to our data:
 
 2. There is only one row with missing variables, so we omitted the row.
 
-3. When examining the correlation plots, we see that many variables are highly correlated. For example, `college_jobs`, `employed_fulltime`, `employed_parttime` are highly correlated. We transforms some of these variables into `college_job_prop` and `full_time_yearround_prop`, which gives the proportions rather than an absolute number. We believe these variables would be less correlated with other explanatory variables. 
+3. When examining the correlation plots, we see that many variables are highly correlated. For example, `college_jobs`, `employed_fulltime`, `employed_parttime` are highly correlated. We created new variables based on these highly correlated variables into `college_job_prop` and `full_time_yearround_prop`, which gives the proportions rather than an absolute number. We believe these variables would be less correlated with other explanatory variables. 
 
 4. We standardized continuous variables to prepare for variable selection and transformed categorical variables into dummies.
 
-5. We also performed a test-train split; the test set will be used to guard against overfitting and to build prediction intervals. 
+5. We also performed a 80-20 test-train split; the test set will be used to detect overfitting and to build prediction intervals. 
 
 
-```{r data_cleaning}
+```{r data_cleaning, echo = F}
 # load data
 crg <- college_recent_grads
 crg <- na.omit(crg)
@@ -103,7 +89,10 @@ crg["full_time_yearround_prop"] <- crg$employed_fulltime_yearround / crg$employe
 crg <- na.omit(crg)
 cont <- select_if(crg, is.numeric)
 cont <- na.omit(cont)
-corrplot(cor(cont), type = "upper", order = "AOE")
+
+#corrplot(cor(cont), type = "upper", order = "AOE", title = "test")
+#mtext("test 2", at=2.5, line = -0.5,cex=2)
+
 
 # transform data
 standardized <- data.frame(scale(cont))
@@ -126,13 +115,38 @@ training_data <- crg[training_size,]
 testing_data <- crg[-training_size,]
 
 ```
-We also created an overview of the distribution of median incomes from different major categories. 
-```{r visualizations }
 
+```{r visualizations, echo = F}
+#correlation between continuous variables
+corrrr <- reshape2::melt(cor(cont), 
+                      varnames = paste0("variables", 1:2), 
+                      value.name = "Correlation")
+
+ggplot(corrrr, aes(variables1, variables2, fill = Correlation)) + 
+  geom_tile(color="white") + 
+  scale_fill_gradient2(low="blue",
+                       high="red",
+                       mid="white",
+                       midpoint = 0, limit = c(-1,1), space = "Lab", 
+                       name="Correlation") +
+  ggtitle("Figure 1 \nCorrelation Heat Map") + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+    size = 12, hjust = 1), plot.title = element_text(hjust = 0.5))
+
+#distribution of category and median income
 # major category versus median income 
-ggplot(aes(x = major_category, y = log_median), data = temp) + geom_boxplot() + coord_flip()
+ggplot(aes(x = major_category, y = log_median), data = temp) + 
+  geom_boxplot() + 
+  coord_flip() + 
+  ggtitle("Figure 2 \nlog_median vs major_category") +
+  theme(plot.title = element_text(hjust = 0.5))
 
 ```
+  
+Looking at Figure 1, there are a lot of variables highly correlated with each other, particularly for variables that are already similar to each other, like type of job or type of employment. High correlation can be good to help explain median income, but it also comes with the risk of collinearity. In Figure 2, we look at how log_median is spread out among various major categories. The most apparent thing is seeing how much money Engineering gets. If a category 
+  
+Using the alias function on a lm object with all variables reveals which variables are collinear, this turned out to be the variables total and men. We removed men as well as the variables major_code, p25th, and p75th as they do not benefit the model.
+
 
 ### Model selection
 
@@ -145,46 +159,89 @@ Next, we consider adding interaction terms. We used the Analysis of Variance tes
 The two methods of variable selection (backward/forward versus Analysis of Variance) each have their weaknesses. Backward/forward selection add variable step-wise, so this method doesn't guarantee to select the best subset of explanatory variables; furthermore, it doesn't obey the principle of marginality and doesn't treat the variable `major_category` as a single category. Nevertheless, it doesn't rely on the assumption that the explanatory variable is normally distributed, while the Analysis of Variance test does. The Analysis of Variance test does obey the principle of marginality, and hence is better suited to select interaction terms. Due to these weaknesses, the model we selected didn't include all of the original 16 `major_category`, but only `Computers & Mathematics`, `Engineering`, and `Biology & Life Science`, which encompasses 31% of all the majors listed in our dataset. Our model selection method has made the `major_category` variables coarser. 
 
 
-```{r prepare_data_for_selection}
+```{r prepare_data_for_selection, include = F}
 unique(college_recent_grads$major_category)
-nrow(college_recent_grads[college_recent_grads$major_category %in% c("Computers & Mathematics", "Biology & Life Science", "Engineering"), ])
+nrow(college_recent_grads[college_recent_grads$major_category %in% 
+        c("Computers & Mathematics", "Biology & Life Science", "Engineering"), ])
 
-nrow(college_recent_grads)
 Y <- as.matrix(crg$log_median)
 
 X <- as.matrix(subset(crg,select=-c(log_median,median, major_code, p25th, p75th)))
-# Check for linear dependencies, remove "men" or "total"
+
+# Check for linear dependencies, need to remove "men" or "total"
 alias(lm(Y~X))
-X <- as.matrix(subset(crg,select=-c(log_median,median, major_code, p25th, p75th,  men)))
+
+#removing men because of collinearity
+X <- as.matrix(subset(crg,select=-c(log_median,median, 
+                                    major_code, p25th, p75th,  men)))
 ```
 
 #### Variable selection without interactions: backward/forward/cross-validation 
 
-```{r backward_forward_selection}
+```{r backward_forward_selection, include = F}
 
-#Forward Selection
-model <- regsubsets(x = X, y = Y, method = "forward", nbest = 1) %>% summary()
+#########Forward Selection#########
+f_model <- regsubsets(x = X, y = Y, method = "forward", nbest = 1) %>% summary()
 
-adjustr2 <- model$adjr2
-BIC <- model$bic
-mallow_Cp <- model$cp
+#extracting criterion
+f_adjustr2 <- f_model$adjr2
+f_BIC <- f_model$bic
+f_mallow_Cp <- f_model$cp
+
+#picking best variables
+f_adjr2_picked <- f_model$which[which.max(f_adjustr2),]
+f_BIC_picked <- f_model$which[which.min(f_BIC),]
+f_cp_picked <- f_model$which[which.min(f_mallow_Cp),]
+
+#printing picked variables
+f_adjr2_picked[f_adjr2_picked == TRUE]
+f_BIC_picked[f_BIC_picked == TRUE]
+f_cp_picked[f_cp_picked == TRUE]
 
 
-cbind(model$which[which.max(adjustr2),], model$which[which.min(BIC),],model$which[which.min(mallow_Cp),])
 
-#Backward Selection
+#########Backward Selection#########
+b_model <- regsubsets(x = X, y = Y, method = "backward", nbest = 1) %>% summary()
 
-model <- regsubsets(x = X, y = Y, method = "backward", nbest = 1) %>% summary()
+#extracting criterion
+b_adjustr2 <- b_model$adjr2
+b_BIC <- b_model$bic
+b_mallow_Cp <- b_model$cp
 
+#picking best variables
+b_adjr2_picked <- b_model$which[which.max(b_adjustr2),]
+b_BIC_picked <- b_model$which[which.min(b_BIC),]
+b_cp_picked <- b_model$which[which.min(b_mallow_Cp),]
 
-adjustr2 <- model$adjr2
-BIC <- model$bic
-mallow_Cp <- model$cp
-cbind(model$which[which.max(adjustr2),], model$which[which.min(BIC),],model$which[which.min(mallow_Cp),])
+#printing picked variables
+b_adjr2_picked[b_adjr2_picked == TRUE]
+b_BIC_picked[b_BIC_picked == TRUE]
+b_cp_picked[b_cp_picked == TRUE]
+```
+
+```{r forward_backward_visualized, echo = F}
+par(mfrow=c(2,3))
+plot(f_adjustr2, xlab = "Number of variables",ylab = "Forward Adjusted R squared", type = "l")
+points(which.max(f_adjustr2), max(f_adjustr2), col = "red")
+plot(f_BIC, xlab = "Number of variables",ylab = "Forward BIC", type = "l")
+points(which.min(f_BIC), min(f_BIC), col = "red")
+plot(f_mallow_Cp, xlab = "Number of variables",ylab = "Forward Mallow's Cp", type = "l")
+points(which.min(f_mallow_Cp), min(f_mallow_Cp), col = "red")
+###
+plot(b_adjustr2, xlab = "Number of variables",ylab = "Backward Adjusted R squared", type = "l")
+points(which.max(b_adjustr2), max(b_adjustr2), col = "red")
+plot(b_BIC, xlab = "Number of variables",ylab = "Backward BIC", type = "l")
+points(which.min(b_BIC), min(b_BIC), col = "red")
+plot(b_mallow_Cp, xlab = "Number of variables",ylab = "Backward Mallow's Cp", type = "l")
+points(which.min(b_mallow_Cp), min(b_mallow_Cp), col = "red")
+mtext("Forward Variable Selection",side=3,line=-2,outer=TRUE)
+mtext("Backward Variable Selection",side=3,line=-22,outer=TRUE)
 
 ```
 
-```{r backward_adjusted_r_squared}
+
+
+```{r backward_adjusted_r_squared, include = F}
 # Backward Adjusted R-squared CV
 tc <- trainControl(method = "LOOCV")
 b_adjr2_mod_cv <- train(log_median ~ employed + employed_fulltime_yearround + 
@@ -198,13 +255,15 @@ b_adjr2_mod_cv.rmse <- b_adjr2_mod_cv$results[,"RMSE"]
 ```
 
 
-```{r backward_bic}
+```{r backward_bic, include = F}
 # Backward BIC CV
-b_bic_mod_cv <- train(log_median ~ rank + college_job_prop +  major_category_Engineering, data = training_data, method = "lm", trControl = tc )
+b_bic_mod_cv <- train(log_median ~ rank + college_job_prop +  
+                        major_category_Engineering, 
+                      data = training_data, method = "lm", trControl = tc )
 b_bic_mod_cv.rmse <- b_bic_mod_cv$results[, "RMSE"]
 ```
 
-```{r backward_mallow_cp}
+```{r backward_mallow_cp, include = F}
 # Backward Mallow's Cp CV
 b_cp_mod_cv <- train(log_median ~ employed + employed_fulltime_yearround + 
                        college_job_prop +  major_category_Biology...Life.Science
@@ -215,7 +274,7 @@ b_cp_mod_cv.rmse <- b_cp_mod_cv$results[, "RMSE"]
 ```
 
 
-```{r forward_all_three_criterias}
+```{r forward_all_three_criterias, include = F}
 # Forward Adjusted R-squared CV
 f_adjr2_model_cv <- train(log_median ~ rank + unemployment_rate + 
                            college_job_prop + major_category_Arts + 
@@ -244,24 +303,25 @@ f_Cp_model_cv <- train(log_median ~ rank + unemployment_rate +
 f_Cp_model_cv.rmse <- f_Cp_model_cv$results[, "RMSE"]
 ```
 
-```{r check_overfitting}
+```{r check_overfitting, echo = F}
 #checking for overfitting
+#if the model overfits, it shouldnt be able to predict the test set that well
 
-# model selected from backward/forward selection 
-model.backfor <- lm(log_median ~ employed + employed_fulltime_yearround + 
-                          college_job_prop +
-                          major_category_Biology...Life.Science+
-                          major_category_Computers...Mathematics + 
-                          rank + sharewomen + major_category_Engineering, 
-                    data = training_data)
+model.backfor <- lm(log_median ~ employed + employed_fulltime_yearround +
+                       college_job_prop +  major_category_Biology...Life.Science
+                     + major_category_Computers...Mathematics + rank +
+                       major_category_Engineering + sharewomen , data = testing_data)
+
 
 model.backfor_predict <- predict(model.backfor, newdata = testing_data, type = "response")
 
 # sum of error squared 
-sum((testing_data$log_median - model.backfor_predict)^2)
+SSR <- sum((testing_data$log_median - model.backfor_predict)^2)
+cat("Sum of Errors Squared: ", SSR)
 
 # correlation between actual values and predicted values 
-cor(model.backfor_predict, testing_data$log_median)**2
+cor_predict <- cor(model.backfor_predict, testing_data$log_median)**2
+cat("Correlation between the predicted values and actual values: ", cor_predict)
 
 ```
 
@@ -271,7 +331,7 @@ Summary table description:
 `forward.rmse` and `backward.rmse` are columns with the RMSE from prediction on the testing dataset depending on either forward selection or backward selection. 
 Each of the row represent the criteria in which to choose the model from either forward or backward selection: `Adjusted R squared`, `BIC`, `Mallow's Cp`. 
 
-```{r CV_rmse_summary}
+```{r CV_rmse_summary, echo = F}
 
 criterias <- c("Adjusted R squared", "BIC", "Mallow's Cp")
 forward.rmse <- c(f_adjr2_model_cv.rmse, f_BIC_model_cv.rmse, f_Cp_model_cv.rmse)
@@ -285,7 +345,7 @@ data.frame(criterias, forward.rmse, backward.rmse)
 
 To examine possible interaction terms, we look at coplots, created on the training data set with standardized continuous variables. The coplots show that `sharewomen` and `employed_fulltime_yearround` seem to have interactions with `major_category`. However, these coplots are inconclusive, so we will run an Analysis of Variance test to determine which interaction terms to keep. 
 
-```{r coplots, warning=FALSE, message=FALSE}
+```{r coplots, warning=FALSE, message=FALSE, echo = F}
 #interactions
 
 # temp dataframe for co-plots
@@ -294,7 +354,7 @@ temp.coplot <- temp.training[temp.training$major_category %in%
                                c("Biology & Life Science",
                                  "Computers & Mathematics", 
                                  "Engineering"), ]
-
+par(mfrow=c(2,2))
 
 # share women and median income 
 xyplot(log_median ~ sharewomen | major_category, data = temp.coplot ,
@@ -324,7 +384,7 @@ panel.xyplot(x, y, type = c("p", "smooth", "r"))
 ```
 We will keep all the original terms (not interaction terms) and will use the Analysis of Variance test to determine which interaction terms to add. This test, unlike the coplots shown above, show that interaction terms `rank:major_category_Engineering` and `sharewomen:major_category_Engineering` have significant p-values. We will include those variables in our final selected model. 
 
-```{r full_model_interactions}
+```{r full_model_interactions, include= F}
 # model selected from backward/forward selection 
 model.backfor <- lm(log_median ~ employed + employed_fulltime_yearround + 
                           college_job_prop +
@@ -360,7 +420,7 @@ model.interacts <- lm(log_median ~
 Anova(model.interacts)
 ```
 
-```{r interactions}
+```{r interactions, include = F}
 
 # reduced model after running Anova test 
 model.inter_reduced <- lm(log_median ~ 
@@ -377,7 +437,7 @@ model.inter_reduced <- lm(log_median ~
 anova(model.interacts, model.inter_reduced)
 ```
 
-```{r compare_models}
+```{r compare_models, include = F}
 # compare model with and without interactions in terms of LOOCV RMSE
 interactions_cv <- train(log_median ~ 
                         rank + sharewomen + 
@@ -406,10 +466,11 @@ After considering the interaction terms, the selected model we chose includes th
 
 We then perform diagnostics on outliers and assumptions. From the `Residuals vs Fitted` and `Scale-Location` plots, we see that there's no pattern in the studentized residuals against the fitted values, so we conclude that the response variable has a quite linear relationship with the explanatory variables, and the errors have constant residuals. Based on the `QQ plot`, we see that most of the data lines around the theoretical line well, meaning that the response variable is somewhat normally distributed. However, according to the `Residuals vs Leverage` plot, there are some outliers with higher Cook's distance, notably. Below, we fitted the model selected above without these points. We calculate the LOOCV RMSE of this new model. 
 
-```{r diagnostics_plot}
+```{r diagnostics_plot, echo = F}
+par(mfrow=c(2,2))
 plot(model.inter_reduced)
 ```
-```{r outliers_diagnostics}
+```{r outliers_diagnostics, echo = F}
 # outlier rows 
 training_data[c(14, 33, 74, 87),]
 
@@ -434,7 +495,7 @@ interactions_no_outliers.rmse
 ### Prediction
 
 
-```{r predictions}
+```{r predictions, echo = F}
 
 # final model selected 
 
@@ -475,7 +536,7 @@ temp1
 ### Reporting 
 
 
-```{r Bootstrap}
+```{r Bootstrap, include = F}
 #bootstrap for confidence interval
 
 modeling <- lm(log_median ~
@@ -490,6 +551,8 @@ modeling <- lm(log_median ~
                       data = training_data[-c(14, 33, 74, 87),])
 
 
+modeling %>% summary()
+
 #setting up nonparametric bootstrap
 set.seed(11)
 crg_data <- as.matrix(subset(crg,select=-c(median, major_code, p25th, p75th)))
@@ -498,8 +561,6 @@ sample_dist <- data.frame(crg_data[sampling_size,])
 
 any(is.na(sample_dist))
 
-
-any(is.na(sample_dist))
 
 #bootstrap function
 get_coef_resample <- function(){

@@ -1,7 +1,7 @@
 ---
-title: "What kind of median earnngs to expect from a type of major"
+title: "What kind of median earnings to expect from a type of major"
 author: "Kelly Trinh, Hanfei Sun, and Nathan Lam"
-output: html_document
+output: pdf_document
 ---
 
 
@@ -24,7 +24,6 @@ It contains income and other information about 16 different major categories.
 Below is a detailed description of each variable given in the dataset: 
 
 
-(this stuff wont show for me)
 |Header            |	Description                                   |
 |------------------|------------------------------------------------|
 `Rank` | Rank by median earnings 
@@ -33,8 +32,8 @@ Below is a detailed description of each variable given in the dataset:
 `Major_category`	| Category of major 
 `Total` |	Total number of people with major
 `Sample_size` |	Sample size of full-time, year-round
-`Men`	| Male graduates
-`Women`	| Female graduates
+`Men`	| Number of male graduates
+`Women`	| Number of female graduates
 `ShareWomen` |	Proportion of women
 `Employed` |	Number employed 
 `Full_time`	| Employed 35 hours or more
@@ -53,16 +52,26 @@ Below is a detailed description of each variable given in the dataset:
 
 The selected model we chose includes the following variables, with the two last variables being the interaction terms between dummy variable `major_category_Engineering` and variables `rank` and `sharewomen`:
 
-`rank`,`sharewomen`,`employed`, `employed_fulltime_yearround`, `college_job_prop`, 
-`major_category_Biology...Life.Science`, `major_category_Computers...Mathematics`, `major_category_Engineering`, `major_category_Engineering * rank`, and `major_category_Engineering * sharewomen`.
 
+$$
+\begin{aligned}
+log(median) 
+&= rank + sharewomen + employed + employed\_fulltime\_yearround + college\_job\_prop\\ 
+&+ major\_category\_Biology\ Life \& Science +major\_category\_Computers\&Mathematics\\
+&+ major\_category\_Engineering + major\_category\_Engineering * rank\\
+&+ major\_category\_Engineering * sharewomen
+\end{aligned}
+$$
 
-We arrived at the final model by performing two round of variable selection. The first round we only consider the existing variables (no interaction terms) using a combination of forward selection, backward selection, and leave-one-out cross validation (LOOCV). The second round we considered interaction terms and used the Analysis of Variance test to determine which terms we should keep in the model. Our diagnostic plots and bootstrap distributions of the coefficients show that the data sufficiently meets the assumption linear regression involving constant variance in the errors, linearity, and normality. Therefore, we decide that an OLS model is sufficient after removing some points with high influence.  
+We arrived at the final model by performing two rounds of variable selection. The first round we only consider the existing variables (no interaction terms) using a combination of forward selection, backward selection, and leave-one-out cross validation (LOOCV). The second round we considered interaction terms and used the Analysis of Variance test to determine which terms we should keep in the model. Our diagnostic plots and bootstrap distributions of the coefficients show that the data sufficiently meets the assumption linear regression involving constant variance in the errors, linearity, and normality. Therefore, we decide that an OLS model is sufficient after removing some points with high influence.  
 
 ## Model results and limitations 
 
-Coefficient interpretations: **(insert here)**
+Since the variables are standardized before the regression, to assess the importance of the variables, we could directly compare the magnitude of the coefficients, and we could discover that the engineering major category and its interaction with the variable "rank" are relatively more important that the other explanatory variables
 
+In order to make interpretations easier, we reloaded the data and fit the model using the un-standardized variables.
+
+The adjusted R-squared value of our final model is 0.9478334, so roughly 95% of the variation in the log of the median income is explained by our linear model. Since the response variable is the log of the median income, the coefficients can be interpreted as the percentage that the actual median income will change given a one unit increase in the explanatory variables. For instance, the coefficient on "sharewomen", which represents the proportion of women in that major, is roughly -0.0275. This means that if the proportion of women in a major increases by 100 percent, the median income of the students graduating with that major is expected to decrease by 2.75%, which indicates that there is probably a gender gap in income. For the categorical variables, the coefficient on, for example, major_category_Engineering is approximately 0.31. This means that students graduating with a major in the engineering category has a median income 0.31% higher than those who are not. Interpreting the coefficient on interaction terms is slightly more difficult. The coefficient on the interaction term between "sharewomen" and the engineering major category is about -0.387. This means that for students with a major in the engineering category, if the proportion of women students increase by 10%, then the median income of this group of students after graduating is expected to decrease by 3.87%.
 
 
 Here are some limitations of our model: 
@@ -72,38 +81,13 @@ Here are some limitations of our model:
 
 2. The two methods of variable selection (backward/forward versus Analysis of Variance/ANOVA) each do not guarantee to select the best subset of explanatory variables. Backward/forward selection add variable step-wise, so it behaves more as a local optimizer than a global optimizer. The ANOVA test relies on the assumption that the data behaves in a normal distribution, and since it utilizes p-values, there is a possibility of wrongly rejecting the null.  
 
-3. For each major category there’s only around 5-15 rows, some majors such as `Interdisciplinary` only have 1 row. The results of the model may be more reliable if there is more rows per major category. 
-
-**(alternate)**
 3. Each major category is not equally represented proportionally, some majors such as `Interdisciplinary` only have 1 row. The results of the model may be more reliable if there is more rows per major category.
 
 4. The model doesn't explain the following confounding variables:
-- The universities the students attend: some universities have stronger connections to certain industries or are located in more advantageous locations. For example, UC Berkeley has strong connections with Silicon Valley, meaning that computer science and technology students may have better chances to land higher paying jobs. On the other hand, Arts students at Berkeley would not have the same advantages. 
-- Location where the students work: pay may vary highly depending on the location worked. For example, consulting jobs in New York may have higher pay compared to Nevada due to the prices of each location. 
-- Financial background of the students: students from higher-income families tend to be more well-equipped to land a high-paying job early in their careers. 
-- The industries the student go to: some students may not choose to go to an unrelated compared to their major. For example, an Arts student choose to work in an investment banking firm such as JP Morgan will have very different salaries compared to an Arts student who becomes an architect.
-
-**(alternate)**
 -Context can heavily influence a student's trajectory. Things like financial background, location of university, and type of university can offer students more or less resources needed for better chances of higher pay and thus can influence median income.
 
 5. Other model-building methods we should consider include: finding a better way to treat NaN values instead of omitting them, trying alternative cross-validation methods (such as k-fold cross validation), and considering non-linear models (our diagnostics show that our data show linearity but our analysis will be more rigorous if we compare our OLS model and non-linear models).
 
-**(alternate)**
-5. Alternative steps future studies can make:
-- change method on dealing with missing values; filling in missing values instead of omitting them.
-- Change method of cross validation
-- Consider nonlinear model
-
-## Conclusions on main findings 
-
-*** 
-Summarize conclusions 
-***
-
-Some improvements we could implement into our model:
-1. We may want to manually add major categories that were not selected in our model, or we could combine some major categories together depending on their relatedness (for example, combining `Physical Sciences` and `Biology & Life Sciences`), which may allow for our final model include more major category variables.
-2. We also might try an exhaustive selection method and trying out different cross validation methods. 
-3. Finally, we can collect more data to add more information on confounding variables or add more rows per major category. 
 
 ## Additional work 
 
@@ -190,7 +174,8 @@ testing_data <- crg[-training_size,]
 
 ```
   
-We also created an overview of the distribution of median incomes from different major categories.  
+We also created an overview of the distribution of median incomes from different major categories. 
+
 ```{r visualizations, echo = F, out.width = "50%",fig.align='center', fig.cap = "Figure 2"}
 
 # major category versus median income 
@@ -280,7 +265,7 @@ b_cp_picked[b_cp_picked == TRUE]
 
 ```
 
-```{r forward_backward_visualized, echo = F, fig.cap = "Figure 3: Progression of variable selection", fig.align='center'}
+```{r forward_backward_visualized, echo = F, fig.cap = "Figure 3: Progression of variable selection", fig.align='center',,fig.width=7, fig.height=4}
 par(mfrow=c(2,3))
 plot(f_adjustr2, xlab = "Number of variables",ylab = "Forward Adjusted R squared", type = "l")
 points(which.max(f_adjustr2), max(f_adjustr2), col = "red")
@@ -296,7 +281,7 @@ points(which.min(b_BIC), min(b_BIC), col = "red")
 plot(b_mallow_Cp, xlab = "Number of variables",ylab = "Backward Mallow's Cp", type = "l")
 points(which.min(b_mallow_Cp), min(b_mallow_Cp), col = "red")
 mtext("Forward Variable Selection",side=3,line=-2,outer=TRUE)
-mtext("Backward Variable Selection",side=3,line=-22,outer=TRUE)
+mtext("Backward Variable Selection",side=3,line=-18,outer=TRUE)
 
 
 ```
@@ -424,6 +409,10 @@ xyplot(log_median ~ sharewomen | major_category, data = temp.coplot ,
 panel.xyplot(x, y, type = c("p", "smooth", "r"))
 })
 
+```
+
+
+```{r, echo = F, warning = F, fig.show='hide', message=F}
 # rank and median income 
 xyplot(log_median ~ rank | major_category, data = temp.coplot ,
        panel = function(x, y) {
@@ -441,8 +430,6 @@ xyplot(log_median ~ employed_fulltime_yearround | major_category, data = temp.co
        panel = function(x, y) {
 panel.xyplot(x, y, type = c("p", "smooth", "r"))
 })
-
-
 ```
   
 We will keep all the original terms (not interaction terms) and will use the Analysis of Variance test to determine which interaction terms to add. This test, unlike the coplots shown above, show that interaction terms `rank:major_category_Engineering` and `sharewomen:major_category_Engineering` have significant p-values. We will include those variables in our final selected model. 
@@ -531,17 +518,14 @@ We then perform diagnostics on outliers and assumptions. From the `Residuals vs 
 
 ```{r diagnostics_plot, echo = F, fig.cap = "Figure 5: Diagnosis plots"}
 par(mfrow=c(2,2))
-plot(model.inter_reduced, which = 1, sub = "Figure 5a")
-plot(model.inter_reduced, which = 2, sub = "Figure 5b")
-plot(model.inter_reduced, which = 3, sub = "Figure 5c")
-plot(model.inter_reduced, which = 5, sub = "Figure 5d")
 
+plot(model.inter_reduced)
 
 ```
 
 ```{r outliers_diagnostics, echo = F}
 # outlier rows 
-training_data[c(14, 33, 74, 87),]
+outlier_rows <- training_data[c(14, 33, 74, 87),]
 
 # refit model with the outliers 
 interactions_no_outliers <- train(log_median ~ 
@@ -602,104 +586,95 @@ temp1
 
 ```
 
-### Reporting 
 
+### Interpretation of the coefficients(un-standardized)
 
-```{r Bootstrap, include = F}
-#bootstrap for confidence interval
-
-modeling <- lm(log_median ~
-                        rank + sharewomen +
-                        employed + employed_fulltime_yearround +
-                        college_job_prop +
-                        major_category_Biology...Life.Science+
-                        major_category_Computers...Mathematics +
-                        major_category_Engineering +
-                        major_category_Engineering * rank +
-                        major_category_Engineering * sharewomen,
-                      data = training_data[-c(14, 33, 74, 87),])
-
-
-#setting up nonparametric bootstrap
+```{r, echo = F}
+df <- college_recent_grads
+df <- na.omit(df)
+df["log_median"] <- log(df$median)
+df["college_job_prop"] <- df$college_jobs / (df$college_jobs + df$non_college_jobs)
+df["full_time_yearround_prop"] <- df$employed_fulltime_yearround / df$employed
+df <- na.omit(df)
+df <- dummy_cols(df, select_columns = "major_category", remove_selected_col = TRUE,remove_first_dummy = TRUE)
+col_names <- make.names(names(df),unique=TRUE)
+colnames(df) <- col_names
 set.seed(11)
-crg_data <- as.matrix(subset(crg,select=-c(median, major_code, p25th, p75th)))
-sampling_size <- sample(dim(crg_data)[1],nrow(crg_data)*0.5)
-sample_dist <- data.frame(crg_data[sampling_size,])
-
-any(is.na(sample_dist))
-
-
-
-#bootstrap function
-get_coef_resample <- function(){
-   #makes a resample from sample dist
-   resample <- sample_n(sample_dist, size = nrow(sample_dist),replace = TRUE)
-
-
-   slopes <- lm(log_median ~
-                        rank + sharewomen +
-                        employed + employed_fulltime_yearround +
+training_size <- sample(dim(df)[1],nrow(df)*0.8)
+training_set <- df[training_size,]
+final_model <- lm(log_median ~ 
+                        rank + sharewomen + 
+                        employed + employed_fulltime_yearround + 
                         college_job_prop +
                         major_category_Biology...Life.Science+
-                        major_category_Computers...Mathematics +
+                        major_category_Computers...Mathematics + 
                         major_category_Engineering +
                         major_category_Engineering * rank +
-                        major_category_Engineering * sharewomen,
-                      data = resample) %>% coef()
-   return(slopes)
+                        major_category_Engineering * sharewomen, 
+                      data = training_set[-c(14, 33, 74, 87),])
+```
+
+### Bootstrap
+
+We will use the bootstrap to assess the stability of the coefficients since different data set will result in different regression coefficient, and then, we will construct 95% confidence intervals for the coefficient on each of the explanatory variables we have selected, using the percentile method.
+
+```{r Bootstrap, echo = FALSE}
+# Bootstrap Alternative
+
+r <- 1000
+store <- matrix(0, nrow = r, ncol = 11)
+for (i in 1:r){
+   new_data <- sample_n(training_data, nrow(training_data), replace = TRUE)
+   mod <- lm(log_median ~ 
+                        rank + sharewomen + 
+                        employed + employed_fulltime_yearround + 
+                        college_job_prop +
+                        major_category_Biology...Life.Science+
+                        major_category_Computers...Mathematics + 
+                        major_category_Engineering +
+                        major_category_Engineering * rank +
+                        major_category_Engineering * sharewomen, 
+                      data = new_data)
+   store[i,] <- coef(mod)
 }
 
-nonpara_slopes <- t(replicate(1000,get_coef_resample()))
-#nonpara_slopes[,8] #math coef has na values
-as.data.frame(nonpara_slopes)
-any(is.na(nonpara_slopes)) #checking if there're any NA
-nonpara_slopes <- na.omit(nonpara_slopes) #removing na values
-for(i in 1:ncol(nonpara_slopes)){hist(nonpara_slopes[,i])} #hist of each coef
-summary(modeling)
-nrow(nonpara_slopes)
-col_CI = 1
-CI <- nonpara_slopes[order(nonpara_slopes[,col_CI]),]
-cbind(CI[25,col_CI],modeling$coefficients[col_CI],CI[975,col_CI])
-
-
-
-nonpara_slopes <- t(replicate(1000,get_coef_resample()))
-#nonpara_slopes[,8] #math coef has na values
-
-as.data.frame(nonpara_slopes)
-
-any(is.na(nonpara_slopes)) #checking if there're any NA
-nonpara_slopes <- na.omit(nonpara_slopes) #removing na values
-
-
-for(i in 1:ncol(nonpara_slopes)){hist(nonpara_slopes[,i])} #hist of each coef
-summary(modeling)
-
-nrow(nonpara_slopes)
-
-
-col_CI = 1
-CI <- nonpara_slopes[order(nonpara_slopes[,col_CI]),]
-cbind(CI[25,col_CI],modeling$coefficients[col_CI],CI[975,col_CI])
-
-
-#checking if model is in 95% CI
-is_in_CI <- NULL
-for(i in 1:ncol(nonpara_slopes)){
-   CI <- nonpara_slopes[order(nonpara_slopes[,i]),] #orders data based on ith col
-   
-   print(CI[25,i],CI[975,i])
-
-
-   if(CI[25,i] <= modeling$coefficients[i] & modeling$coefficients[i] <= CI[975,i]){
-      is_in_CI <- c(TRUE,is_in_CI)
-   } else {
-      is_in_CI <- c(FALSE,is_in_CI)
-   }
+cis <- c()
+for (i in 1:11){
+   sorted <- sort(store[,i], decreasing = FALSE)
+   lower <- quantile(sorted, 0.025)
+   upper <- quantile(sorted, 0.975)
+   cis <- append(cis, cbind(lower, upper))
 }
+cis <- matrix(cis, nrow = 11, ncol = 2, byrow = TRUE)
+final_model_summary <- summary(model.final)
+final_model_summary <- data.frame(final_model_summary$coefficients)
+variable_names <- row.names(final_model_summary)
+cis <- data.frame(cis)
 
+row.names(cis) <- variable_names
+colnames(cis)  <- c("Lower", "Upper")
+head(cis)
+```
+
+We will show, as an example, a histogram in order to see the distribution of the bootstrapped coefficients on an explanatory variable.
+
+```{r, echo = FALSE}
+# Show an example histogram
+hist(store[,3], main = "Histogram of the bootstrapped coefficients on sharewomen", xlab = "Slope")
 ```
 
 
+In general, if the distribution looks normal, we could make the conclusion that the coefficients are stable. We also noticed that among the 95% confidence intervals computed for the variables we have selected, some contain zero, indicating statistical insignificance, but we believe this could be explained by how, rather than using hypothesis testing, we followed Adjusted R-squared, Mallow's Cp, and BIC,then a series of cross validating, to select the variables.
 
 
+
+## Conclusions on main findings and possible improvements
+
+*** 
+Summarize conclusions 
+***
+
+Some improvements we could implement into our model:
+1. We may want to manually add major categories that were not selected in our model, or we could combine some major categories together depending on their relatedness (for example, combining `Physical Sciences` and `Biology & Life Sciences`), which may allow for our final model include more major category variables.
+2. We also might try an exhaustive selection method and trying out different cross validation methods. 
+3. Finally, we can collect more data to add more information on confounding variables or add more rows per major category. 

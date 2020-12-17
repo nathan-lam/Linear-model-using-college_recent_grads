@@ -54,9 +54,6 @@ The selected model we chose includes the following variables, with the two last 
 `major_category_Biology...Life.Science`, `major_category_Computers...Mathematics`, `major_category_Engineering`, `major_category_Engineering * rank`, and `major_category_Engineering * sharewomen`.
 
 
-**(alternate)**
-\[log_median ~ rank + sharewomen + employed + employed_fulltime_yearround + college_job_prop + major_category_Biology...Life.Science + major_category_Computers...Mathematics + major_category_Engineering + major_category_Engineering * rank + major_category_Engineering * sharewomen\]
-
 We arrived at the final model by performing two round of variable selection. The first round we only consider the existing variables (no interaction terms) using a combination of forward selection, backward selection, and leave-one-out cross validation (LOOCV). The second round we considered interaction terms and used the Analysis of Variance test to determine which terms we should keep in the model. Our diagnostic plots and bootstrap distributions of the coefficients show that the data sufficiently meets the assumption linear regression involving constant variance in the errors, linearity, and normality. Therefore, we decide that an OLS model is sufficient after removing some points with high influence.  
 
 ## Model results and limitations 
@@ -162,8 +159,7 @@ ggplot(corrrr, aes(variables1, variables2, fill = Correlation)) +
                        mid="white",
                        midpoint = 0, limit = c(-1,1), space = "Lab", 
                        name="Correlation") +
-  labs(x="",y="",title = "Correlation Heat Map",
-       caption ="Figure 1") + 
+  labs(x="",y="",title = "Correlation Heat Map") + 
   theme(axis.text.x = element_text(angle = 45, vjust = 1, 
     size = 12, hjust = 1), plot.title = element_text(hjust = 0.5))
 
@@ -192,18 +188,18 @@ testing_data <- crg[-training_size,]
 ```
   
 We also created an overview of the distribution of median incomes from different major categories.  
-```{r visualizations, echo = F, out.width = "50%",fig.align='center'}
+```{r visualizations, echo = F, out.width = "50%",fig.align='center', fig.cap = "Figure 2"}
 
 # major category versus median income 
 ggplot(aes(x = major_category, y = log_median), data = temp) + 
    geom_boxplot() + 
    coord_flip() +
-   labs(title = "Major category vs median income", 
-        caption = "Figure 2")
+   labs(title = "Major category vs median income") + 
+   theme(plot.title = element_text(hjust = 0.5))
 
 ```
 
-**(needs improement)**
+**(needs improvement)**
 Looking at Figure 1, there are a lot of variables highly correlated with each other, particularly for variables that are already similar to each other, like type of job or type of employment. High correlation can be good to help explain median income, but it also comes with the risk of collinearity. In Figure 2, we look at how log_median is spread out among various major categories. The most apparent thing is seeing how much money Engineering gets. If a category 
   
 Using the alias function on a lm object with all variables reveals which variables are collinear, this turned out to be the variables total and men. We removed men as well as the variables major_code, p25th, and p75th as they do not benefit the model.
@@ -216,9 +212,9 @@ Using the alias function on a lm object with all variables reveals which variabl
 As mentioned above, we performed two rounds of variable selection. We started with backward/forward selection.
 We note that this method requires standardizing continuous variable, and this method doesn't obey the principle of marginality nor treat the variable `major_category` as a single category. Therefore, in this round of variable selection, we do not consider interaction terms. This task is left to the second round of variable selection where we used an ANOVA test that works better with categorical and interaction terms. The first round helps us select which variables to include in the model, and we will create interaction terms from the selected variables. The second round helps us determine which newly created interaction terms to include in the model in addition to the variables selected from the first round. 
 
-We used backward and forward selection to filter out the existing variables; we consider interaction terms later. We produced six models: the 3 best models selected by backward selection in terms of Mallow's Cp, BIC, and adjusted R squared; and the 3 best models selected by forward selection using the same criterias. To decide between the 6 models, we performed leave-one-out cross validation (LOOCV) and calculated the root mean squared error (RMSE). We select the model with the lowest LOOCV RMSE, which is the model selected using backward selection with adjusted R squared as a criteria (this selected model is the same model chosen from backward selection using Mallow's Cp). The selected model without interaction terms has RMSE of `0.2435908`. We ensure to check for overfitting by training the selected model using the training set, predict on the testing set, and look at the sum of error squared and the correlation between the fitted values and the actual values. 
+We used backward and forward selection to filter out the existing variables; we consider interaction terms later. We produced six models: the 3 best models selected by backward selection in terms of Mallow's Cp, BIC, and adjusted R squared; and the 3 best models selected by forward selection using the same criteria. To decide between the 6 models, we performed leave-one-out cross validation (LOOCV) and calculated the root mean squared error (RMSE). We select the model with the lowest LOOCV RMSE, which is the model selected using backward selection with adjusted R squared as a criteria (this selected model is the same model chosen from backward selection using Mallow's Cp). The selected model without interaction terms has RMSE of `0.2435908`. We ensure to check for overfitting by training the selected model using the training set, predict on the testing set, and look at the sum of error squared and the correlation between the fitted values and the actual values. 
 
-Next, we consider adding interaction terms. We used the Analysis of Variance test to determine which interaction terms to add to the model. To compare this model and the model without interaction terms, we again calculate the LOOCV RMSE for the former and compare with the RMSE of the latter. We found that the model with interaction terms perform better; specficially its LOOCV RMSE is `0.1933749`.
+Next, we consider adding interaction terms. We used the Analysis of Variance test to determine which interaction terms to add to the model. To compare this model and the model without interaction terms, we again calculate the LOOCV RMSE for the former and compare with the RMSE of the latter. We found that the model with interaction terms perform better; specifically its LOOCV RMSE is `0.1933749`.
 
 
 
@@ -281,7 +277,7 @@ b_cp_picked[b_cp_picked == TRUE]
 
 ```
 
-```{r forward_backward_visualized, echo = F, fig.cap = "Figure 3: Progression of variable selection"}
+```{r forward_backward_visualized, echo = F, fig.cap = "Figure 3: Progression of variable selection", fig.align='center'}
 par(mfrow=c(2,3))
 plot(f_adjustr2, xlab = "Number of variables",ylab = "Forward Adjusted R squared", type = "l")
 points(which.max(f_adjustr2), max(f_adjustr2), col = "red")
@@ -532,7 +528,12 @@ We then perform diagnostics on outliers and assumptions. From the `Residuals vs 
 
 ```{r diagnostics_plot, echo = F, fig.cap = "Figure 5: Diagnosis plots"}
 par(mfrow=c(2,2))
-plot(model.inter_reduced)
+plot(model.inter_reduced, which = 1, sub = "Figure 5a")
+plot(model.inter_reduced, which = 2, sub = "Figure 5b")
+plot(model.inter_reduced, which = 3, sub = "Figure 5c")
+plot(model.inter_reduced, which = 5, sub = "Figure 5d")
+
+
 ```
 
 ```{r outliers_diagnostics, echo = F}

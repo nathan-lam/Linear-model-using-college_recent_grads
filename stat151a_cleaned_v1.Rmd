@@ -5,6 +5,7 @@ output: html_document
 ---
 
 
+
 \newpage
 ## Introduction
 
@@ -22,6 +23,8 @@ https://www.rdocumentation.org/packages/fivethirtyeight/versions/0.6.1/topics/co
 It contains income and other information about 16 different major categories.
 Below is a detailed description of each variable given in the dataset: 
 
+
+(this stuff wont show for me)
 |Header            |	Description                                   |
 |------------------|------------------------------------------------|
 `Rank` | Rank by median earnings 

@@ -76,7 +76,6 @@ The adjusted R-squared value of our final model is 0.9478334, so roughly 95% of 
 
 Here are some limitations of our model: 
 
-(model only cares about which model influences higher pay, not a comparison between majors)
 1. Our final model only contain 3 out of 16 major categories. Therefore, if a student want to know about how major categories not included in the model variables are compared, the model will not provide that information. For example, if the student wants to know how major categories `Social Science` or `Health` compares, the model will not give much information. 
 
 2. The two methods of variable selection (backward/forward versus Analysis of Variance/ANOVA) each do not guarantee to select the best subset of explanatory variables. Backward/forward selection add variable step-wise, so it behaves more as a local optimizer than a global optimizer. The ANOVA test relies on the assumption that the data behaves in a normal distribution, and since it utilizes p-values, there is a possibility of wrongly rejecting the null.  

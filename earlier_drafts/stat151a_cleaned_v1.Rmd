@@ -1,4 +1,3 @@
-
 ---
 title: "What kind of median earnings to expect from a type of major"
 author: "Kelly Trinh, Hanfei Sun, and Nathan Lam"
@@ -7,38 +6,25 @@ output: pdf_document
 
 
 
-```{r setup, echo = FALSE, message=FALSE, warning=FALSE}
-library(fivethirtyeight) #source of data
-library(corrplot) #correlation plot
-library(dplyr) #data frame manipulation
-library(ggplot2) #plotting
-library(leaps)#variable selection: adjr2, bic, cp
-library(car) # Anova
-library(fastDummies)#dummy variables
-library(faraway)
-library(caret)
-```
-
-
 \newpage
-# Introduction
+## Introduction
 
-## Research question and Dataset
+#### Research question 
 Not all college students are informed about how the choice of their major can impact their earnings after graduation. We aim to provide an overview for college students of the financial standing of graduates from different majors categories. Our research question is: 
 
 **Given a major category, what factors contribute to how high my median income as a full-time, year-round worker?**
 
-We will be building an linear regression model to find an association between major category and median income and assess its effectiveness.
+We will be building an linear regression model to find an association between major category and median income.
 
+#### Dataset 
 The dataset we used is the recent-grad dataset from the fivethirtyeight package. 
-
 https://www.rdocumentation.org/packages/fivethirtyeight/versions/0.6.1/topics/college_recent_grads
 
 It contains income and other information about 16 different major categories.
 Below is a detailed description of each variable given in the dataset: 
 
 
-|Variable name            |	Description                                   |
+|Header            |	Description                                   |
 |------------------|------------------------------------------------|
 `Rank` | Rank by median earnings 
 `Major_code` | Major code
@@ -61,10 +47,79 @@ Below is a detailed description of each variable given in the dataset:
 `College_jobs` |	Number with job requiring a college degree
 `Non_college_jobs` |	Number with job not requiring a college degree
 `Low_wage_jobs` |	Number in low-wage service jobs
-`full_time_yearround_prop` | (Created during EDA, not present in original dataset) Proportion of jobs that are full-time year round
-`college_job_prop` | (Created during EDA, not present in original dataset) Proportion of jobs that requires a college degree
 
-```{r data_cleaning, echo = F}
+## Final model selected 
+
+The selected model we chose includes the following variables, with the two last variables being the interaction terms between dummy variable `major_category_Engineering` and variables `rank` and `sharewomen`:
+
+
+$$
+\begin{aligned}
+log(median) 
+&= rank + sharewomen + employed + employed\_fulltime\_yearround + college\_job\_prop\\ 
+&+ major\_category\_Biology\ Life \& Science +major\_category\_Computers\&Mathematics\\
+&+ major\_category\_Engineering + major\_category\_Engineering * rank\\
+&+ major\_category\_Engineering * sharewomen
+\end{aligned}
+$$
+
+We arrived at the final model by performing two rounds of variable selection. The first round we only consider the existing variables (no interaction terms) using a combination of forward selection, backward selection, and leave-one-out cross validation (LOOCV). The second round we considered interaction terms and used the Analysis of Variance test to determine which terms we should keep in the model. Our diagnostic plots and bootstrap distributions of the coefficients show that the data sufficiently meets the assumption linear regression involving constant variance in the errors, linearity, and normality. Therefore, we decide that an OLS model is sufficient after removing some points with high influence.  
+
+## Model results and limitations 
+
+Since the variables are standardized before the regression, to assess the importance of the variables, we could directly compare the magnitude of the coefficients, and we could discover that the engineering major category and its interaction with the variable "rank" are relatively more important that the other explanatory variables
+
+In order to make interpretations easier, we reloaded the data and fit the model using the un-standardized variables.
+
+The adjusted R-squared value of our final model is 0.9478334, so roughly 95% of the variation in the log of the median income is explained by our linear model. Since the response variable is the log of the median income, the coefficients can be interpreted as the percentage that the actual median income will change given a one unit increase in the explanatory variables. For instance, the coefficient on "sharewomen", which represents the proportion of women in that major, is roughly -0.0275. This means that if the proportion of women in a major increases by 100 percent, the median income of the students graduating with that major is expected to decrease by 2.75%, which indicates that there is probably a gender gap in income. For the categorical variables, the coefficient on, for example, major_category_Engineering is approximately 0.31. This means that students graduating with a major in the engineering category has a median income 0.31% higher than those who are not. Interpreting the coefficient on interaction terms is slightly more difficult. The coefficient on the interaction term between "sharewomen" and the engineering major category is about -0.387. This means that for students with a major in the engineering category, if the proportion of women students increase by 10%, then the median income of this group of students after graduating is expected to decrease by 3.87%.
+
+
+Here are some limitations of our model: 
+
+1. Our final model only contain 3 out of 16 major categories. Therefore, if a student want to know about how major categories not included in the model variables are compared, the model will not provide that information. For example, if the student wants to know how major categories `Social Science` or `Health` compares, the model will not give much information. 
+
+2. The two methods of variable selection (backward/forward versus Analysis of Variance/ANOVA) each do not guarantee to select the best subset of explanatory variables. Backward/forward selection add variable step-wise, so it behaves more as a local optimizer than a global optimizer. The ANOVA test relies on the assumption that the data behaves in a normal distribution, and since it utilizes p-values, there is a possibility of wrongly rejecting the null.  
+
+3. Each major category is not equally represented proportionally, some majors such as `Interdisciplinary` only have 1 row. The results of the model may be more reliable if there is more rows per major category.
+
+4. The model doesn't explain the following confounding variables:
+-Context can heavily influence a student's trajectory. Things like financial background, location of university, and type of university can offer students more or less resources needed for better chances of higher pay and thus can influence median income.
+
+5. Other model-building methods we should consider include: finding a better way to treat NaN values instead of omitting them, trying alternative cross-validation methods (such as k-fold cross validation), and considering non-linear models (our diagnostics show that our data show linearity but our analysis will be more rigorous if we compare our OLS model and non-linear models).
+
+
+## Additional work 
+
+```{r setup, echo = FALSE, message=FALSE, warning=FALSE}
+library(fivethirtyeight) #source of data
+library(corrplot) #correlation plot
+library(dplyr) #data frame manipulation
+library(ggplot2) #plotting
+library(leaps)#variable selection: adjr2, bic, cp
+library(car) # Anova
+library(fastDummies)#dummy variables
+library(faraway)
+library(caret)
+```
+
+
+
+### EDA and data cleaning 
+
+Here are some modifications we did to our data:
+
+1. The target variable `median` is right-skewed, so we log transformed it.
+
+2. There is only one row with missing variables, so we omitted the row.
+
+3. When examining the correlation plots, we see that many variables are highly correlated. For example, `college_jobs`, `employed_fulltime`, `employed_parttime` are highly correlated. We transforms some of these variables into `college_job_prop` and `full_time_yearround_prop`, which gives the proportions rather than an absolute number. We believe these variables would be less correlated with other explanatory variables. 
+
+4. We standardized continuous variables to prepare for variable selection and transformed categorical variables into dummies.
+
+5. We also performed a test-train split; the test set will be used to guard against overfitting and to build prediction intervals. 
+
+
+```{r data_cleaning, echo = F, fig.cap = "Figure 1: Correlation Heat Map", out.width = "50%",fig.align='center'}
 # load data
 crg <- college_recent_grads
 crg <- na.omit(crg)
@@ -76,108 +131,6 @@ crg["full_time_yearround_prop"] <- crg$employed_fulltime_yearround / crg$employe
 crg <- na.omit(crg)
 cont <- select_if(crg, is.numeric)
 cont <- na.omit(cont)
-
-# transform data
-standardized <- data.frame(scale(cont))
-major_category <- crg$major_category
-crg <- cbind(standardized, major_category)
-
-# temporary data frame to use later 
-temp <- crg 
-
-# transform categorical variable 
-crg <- dummy_cols(crg, select_columns = "major_category", remove_selected_col = TRUE, 
-                  remove_first_dummy = TRUE)
-column_names <- make.names(names(crg),unique=TRUE)
-colnames(crg) <- column_names
-
-# test train split 
-set.seed(11)
-#randomly take 2:8 of data for training
-training_size <- sample(dim(crg)[1],nrow(crg)*0.8)
-training_data <- crg[training_size,]
-testing_data <- crg[-training_size,]
-
-```
-
-# Final model selected 
-
-The final model includes the following variables.(The variable selection process will be further described in "additional work".)
-
-
-$$
-\begin{aligned}
-log(median)
-&= rank + sharewomen + employed + employed\_fulltime\_yearround + college\_job\_prop\\ 
-&+ major\_category\_Biology\ Life \& Science +major\_category\_Computers\&Mathematics\\
-&+ major\_category\_Engineering + major\_category\_Engineering * rank\\
-&+ major\_category\_Engineering * sharewomen
-\end{aligned}
-$$
-
-We arrived at the final model by performing two rounds of variable selection. The first round we only consider the existing variables (no interaction terms) using a combination of forward selection, backward selection, and leave-one-out cross validation (LOOCV). The second round we considered interaction terms and used the Analysis of Variance test to determine which terms we should keep in the model. Our diagnostic plots and bootstrap distributions of the coefficients show that the data sufficiently meets the assumption linear regression involving constant variance in the errors, linearity, and normality. Therefore, we decide that an OLS model is sufficient after removing some points with high influence.  
-
-```{r coefficient_reporting, echo = F, warning = F}
-#Interpretation of the coefficients(un-standardized)
-
-# recreating a table without standardized continuous variables
-# this table should have the same rows as the training dataset 
-crg.temp <- college_recent_grads
-crg.temp <- na.omit(crg.temp)
-
-# create new variable 
-crg.temp["log_median"] <- log(crg.temp$median)
-crg.temp["college_job_prop"] <- crg.temp$college_jobs / 
-   (crg.temp$college_jobs + crg.temp$non_college_jobs)
-crg.temp["full_time_yearround_prop"] <- crg.temp$employed_fulltime_yearround / 
-   crg.temp$employed
-crg.temp <- na.omit(crg.temp)
-
-training_set.temp <- crg.temp[training_size,]
-
-# transform categorical variable 
-training_set.temp  <- dummy_cols(training_set.temp , select_columns = "major_category", 
-                                 remove_selected_col = FALSE,remove_first_dummy = TRUE)
-column_names <- make.names(names(training_set.temp ),unique=TRUE)
-colnames(training_set.temp) <- column_names
-
-final_model <- lm(log_median ~ 
-                        rank + sharewomen + 
-                        employed + employed_fulltime_yearround + 
-                        college_job_prop +
-                        major_category_Biology...Life.Science+
-                        major_category_Computers...Mathematics + 
-                        major_category_Engineering +
-                        major_category_Engineering * rank +
-                        major_category_Engineering * sharewomen, 
-                      data = training_set.temp[-c(7,8,171),])
-
-summary(final_model)
-```
-
-# Model results and limitations 
-
-Since the variables are standardized before the regression, to assess the importance of the variables, we could directly compare the magnitude of the coefficients, and we could discover that the engineering major category and its interaction with the variable "rank" are relatively more important that the other explanatory variables.
-
-In order to make interpretations easier, we reloaded the data and fit the model using the un-standardized variables.
-
-According to the adjusted R-squared value of our final model, roughly 95% of the variation in the log of the median income is explained by our linear model. Since the response variable is the log of the median income, the coefficients can be interpreted as the percentage that the actual median income will change given a one unit increase in the explanatory variables. For instance, the coefficient on "sharewomen", which represents the proportion of women in that major, is roughly -3.780e-02. This means that if the proportion of women in a major increases by 10 percent, the median income of the students graduating with that major is expected to decrease by a factor of e^(-0.00378), or by 0.37%, which indicates that there is probably a gender gap in income. For the categorical variables, the coefficient on, for example, major_category_Engineering is approximately 2.396e-01. This means that students graduating with a major in the engineering category has a median income that's higher by a factor of e^(0.02396), or 2.4% higher than those who are not. Interpreting the coefficient on interaction terms is slightly more difficult. The coefficient on the interaction term between "sharewomen" and the engineering major category is about -4.402e-03. This means that for students with a major in the engineering category, if the proportion of women students increase by 10%, then the median income of this group of students after graduating is expected to decrease by 0.00402%.
-
-
-Here are some limitations of our model: 
-
-Firstly, our final model only contain 3 out of 16 major categories, which makes our original categorical variable "major_category" coarser. Secondly, the two methods of variable selection (backward/forward versus Analysis of Variance/ANOVA) each do not guarantee to select the best subset of explanatory variables. Backward/forward selection add variable step-wise, so it behaves more as a local optimizer than a global optimizer. The ANOVA test relies on the assumption that the data behaves in a normal distribution, and since it utilizes p-values, there is a possibility of wrongly rejecting the null. Thirdly, each major category is not equally represented proportionally, some majors such as `Interdisciplinary` only have 1 row. The results of the model may be more reliable if there is more rows per major category. Additionally, context can heavily influence a student's trajectory. Things like financial background, location of university, and type of university can offer students more or less resources needed for better chances of higher pay and thus can influence median income. Finally, other model-building methods we should consider include: finding a better way to treat NaN values instead of omitting them, trying alternative cross-validation methods (such as k-fold cross validation), and considering non-linear models (our diagnostics show that our data show linearity but our analysis will be more rigorous if we compare our OLS model and non-linear models).
-
-
-# Additional work 
-
-# EDA and Data Cleaning
-
-The histogram for the median income is right-skewed, so the log transformation would be applicable. Additionally, we omitted missing values and removed rows with missing variables.
-
-To check for collinearity, we looked at the correlation plot for the continuous variables in the data set (see Figure 1). Several variables are highly correlated since they are similar, such as "college_jobs", "employed_fulltime", and "employed_parttime"; therefore, we transformed two variable into "college_job_prop" and "full_time_yearround_prop". We believe these variables would be less correlated with other explanatory variables.
-
-```{r correlation_plot, echo = F, fig.width=7, fig.height=4, fig.align='center', fig.cap = "Correlation plot"}
 
 
 #correlation between continuous variables
@@ -196,16 +149,66 @@ ggplot(corrrr, aes(variables1, variables2, fill = Correlation)) +
   theme(axis.text.x = element_text(angle = 45, vjust = 1, 
     size = 12, hjust = 1), plot.title = element_text(hjust = 0.5))
 
+
+
+# transform data
+standardized <- data.frame(scale(cont))
+major_category <- crg$major_category
+crg <- cbind(standardized, major_category)
+
+# temporary data frame to use later 
+temp <- crg 
+
+# transform categorical variable 
+crg <- dummy_cols(crg, select_columns = "major_category", remove_selected_col = TRUE,remove_first_dummy = TRUE)
+column_names <- make.names(names(crg),unique=TRUE)
+colnames(crg) <- column_names
+
+# test train split 
+set.seed(11)
+#randomly take 2:8 of data for training
+training_size <- sample(dim(crg)[1],nrow(crg)*0.8)
+training_data <- crg[training_size,]
+testing_data <- crg[-training_size,]
+
+```
+  
+We also created an overview of the distribution of median incomes from different major categories. 
+
+```{r visualizations, echo = F, out.width = "50%",fig.align='center', fig.cap = "Figure 2"}
+
+# major category versus median income 
+ggplot(aes(x = major_category, y = log_median), data = temp) + 
+   geom_boxplot() + 
+   coord_flip() +
+   labs(title = "Major category vs median income") + 
+   theme(plot.title = element_text(hjust = 0.5))
+
 ```
 
+**(needs improvement)**
+Looking at Figure 1, there are a lot of variables highly correlated with each other, particularly for variables that are already similar to each other, like type of job or type of employment. High correlation can be good to help explain median income, but it also comes with the risk of collinearity. In Figure 2, we look at how log_median is spread out among various major categories. The most apparent thing is seeing how much money Engineering gets. If a category 
+  
+Using the alias function on a lm object with all variables reveals which variables are collinear, this turned out to be the variables total and men. We removed men as well as the variables major_code, p25th, and p75th as they do not benefit the model.
 
-We also standardized the continuous variables to prepare for variable selection and make it easier to assess the importance of the variables.
-Then, we converted the major category into dummy columns so that we could perform variable selection using the built-in function in R.
-To evaluate the model's performance on predicting and avoid overfitting, we conducted a train-test split which takes 80% of the cleaned data as the training set.
 
-Before variable selection, we removed the variables, such as the 25th and the 75th percentile of income, that do not benefit the regression at all, and we used the built-in function "alias" on the linear model object, which reveals any collinearity between the cleaned explanatory variables, and it turned out the "men" and "total" are linearly dependent, so we removed the variable "men" from the cleaned design matrix.
+### Model selection
+
+#### Methodology 
+
+As mentioned above, we performed two rounds of variable selection. We started with backward/forward selection.
+We note that this method requires standardizing continuous variable, and this method doesn't obey the principle of marginality nor treat the variable `major_category` as a single category. Therefore, in this round of variable selection, we do not consider interaction terms. This task is left to the second round of variable selection where we used an ANOVA test that works better with categorical and interaction terms. The first round helps us select which variables to include in the model, and we will create interaction terms from the selected variables. The second round helps us determine which newly created interaction terms to include in the model in addition to the variables selected from the first round. 
+
+We used backward and forward selection to filter out the existing variables; we consider interaction terms later. We produced six models: the 3 best models selected by backward selection in terms of Mallow's Cp, BIC, and adjusted R squared; and the 3 best models selected by forward selection using the same criteria. To decide between the 6 models, we performed leave-one-out cross validation (LOOCV) and calculated the root mean squared error (RMSE). We select the model with the lowest LOOCV RMSE, which is the model selected using backward selection with adjusted R squared as a criteria (this selected model is the same model chosen from backward selection using Mallow's Cp). The selected model without interaction terms has RMSE of `0.2435908`. We ensure to check for overfitting by training the selected model using the training set, predict on the testing set, and look at the sum of error squared and the correlation between the fitted values and the actual values. 
+
+Next, we consider adding interaction terms. We used the Analysis of Variance test to determine which interaction terms to add to the model. To compare this model and the model without interaction terms, we again calculate the LOOCV RMSE for the former and compare with the RMSE of the latter. We found that the model with interaction terms perform better; specifically its LOOCV RMSE is `0.1933749`.
+
+
 
 ```{r prepare_data_for_selection, include = F}
+unique(college_recent_grads$major_category)
+nrow(college_recent_grads[college_recent_grads$major_category %in% 
+      c("Computers & Mathematics", "Biology & Life Science", "Engineering"), ])
 
 Y <- as.matrix(crg$log_median)
 X <- as.matrix(subset(crg,select=-c(log_median,median, major_code, p25th, p75th)))
@@ -217,19 +220,7 @@ alias(lm(Y~X))
 X <- as.matrix(subset(crg,select=-c(log_median,median, major_code, p25th, p75th,  men)))
 ```
 
-## Model selection
-
-### Methodology 
-
-As mentioned above, we performed two rounds of variable selection. We started with backward/forward selection.
-We note that this method requires standardizing continuous variable, and this method doesn't obey the principle of marginality nor treat the variable `major_category` as a single category. Therefore, in this round of variable selection, we do not consider interaction terms. This task is left to the second round of variable selection where we used an ANOVA test that works better with categorical and interaction terms. The first round helps us select which variables to include in the model, and we will create interaction terms from the selected variables. The second round helps us determine which newly created interaction terms to include in the model in addition to the variables selected from the first round. 
-
-We used backward and forward selection to filter out the existing variables; we consider interaction terms later. We produced six models: the 3 best models selected by backward selection in terms of Mallow's Cp, BIC, and adjusted R squared; and the 3 best models selected by forward selection using the same criteria. To decide between the 6 models, we performed leave-one-out cross validation (LOOCV) and calculated the root mean squared error (RMSE). We select the model with the lowest LOOCV RMSE, which is the model selected using backward selection with adjusted R squared as a criteria (this selected model is the same model chosen from backward selection using Mallow's Cp). The selected model without interaction terms has RMSE of `0.2435908`. We ensure to check for overfitting by training the selected model using the training set, predict on the testing set, and look at the sum of error squared and the correlation between the fitted values and the actual values. 
-
-Next, we consider adding interaction terms. We used the Analysis of Variance test to determine which interaction terms to add to the model. To compare this model and the model without interaction terms, we again calculate the LOOCV RMSE for the former and compare with the RMSE of the latter. We found that the model with interaction terms perform better; specifically its LOOCV RMSE is `0.1943964`.
-
-
-### Variable selection without interactions: backward/forward/cross-validation 
+#### Variable selection without interactions: backward/forward/cross-validation 
 
 ```{r backward_forward_selection, include = F}
 
@@ -273,22 +264,16 @@ b_cp_picked[b_cp_picked == TRUE]
 
 ```
 
-
-Figure 2 provides a summary of our variable selection process. The 3 graphs on top shows how the criterions adjusted R squared, BIC, and Mallow's Cp changed as the number of variables increase during forward selection. The 3 graphs below show the same during backward selection. Something interesting to note that BIC chooses models with fewer variables (around 3), while the other criterions prefer models of 6-7 variables.
-
-
-```{r forward_backward_visualized, echo = F, fig.align='center',fig.width=7, fig.height=4, fig.cap = "Variable selection summary"}
+```{r forward_backward_visualized, echo = F, fig.cap = "Figure 3: Progression of variable selection", fig.align='center',,fig.width=7, fig.height=4}
 par(mfrow=c(2,3))
-plot(f_adjustr2, xlab = "Number of variables",
-     ylab = "Forward Adjusted R squared", type = "l")
+plot(f_adjustr2, xlab = "Number of variables",ylab = "Forward Adjusted R squared", type = "l")
 points(which.max(f_adjustr2), max(f_adjustr2), col = "red")
 plot(f_BIC, xlab = "Number of variables",ylab = "Forward BIC", type = "l")
 points(which.min(f_BIC), min(f_BIC), col = "red")
 plot(f_mallow_Cp, xlab = "Number of variables",ylab = "Forward Mallow's Cp", type = "l")
 points(which.min(f_mallow_Cp), min(f_mallow_Cp), col = "red")
 ###
-plot(b_adjustr2, xlab = "Number of variables",
-     ylab = "Backward Adjusted R squared", type = "l")
+plot(b_adjustr2, xlab = "Number of variables",ylab = "Backward Adjusted R squared", type = "l")
 points(which.max(b_adjustr2), max(b_adjustr2), col = "red")
 plot(b_BIC, xlab = "Number of variables",ylab = "Backward BIC", type = "l")
 points(which.min(b_BIC), min(b_BIC), col = "red")
@@ -362,20 +347,35 @@ f_Cp_model_cv <- train(log_median ~ rank + unemployment_rate +
 f_Cp_model_cv.rmse <- f_Cp_model_cv$results[, "RMSE"]
 ```
 
-Below is a summary table of the results of our variable selection method: 
+```{r check_overfitting, echo = F}
+#checking for overfitting
+#if the model overfits, it shouldnt be able to predict the test set that well
 
-`forward.rmse` and `backward.rmse` are columns with the LOOCV RMSE calculated from predictions on the training dataset from forward selection and backward selection. Each of the row represent the criteria in which to choose the model from either forward or backward selection: `Adjusted R squared`, `BIC`, `Mallow's Cp`. 
+# model selected from backward/forward selection 
+model.backfor <- lm(log_median ~ employed + employed_fulltime_yearround + 
+                          college_job_prop +
+                          major_category_Biology...Life.Science+
+                          major_category_Computers...Mathematics + 
+                          rank + sharewomen + major_category_Engineering, 
+                    data = training_data)
 
-The model with the lowest LOOCV RMSE is the following model: 
+model.backfor_predict <- predict(model.backfor, newdata = testing_data, type = "response")
 
-$$
-\begin{aligned}
-log(median)
-&= rank + sharewomen + employed + employed\_fulltime\_yearround + college\_job\_prop\\ 
-&+ major\_category\_Biology\ Life \& Science +major\_category\_Computers\&Mathematics\\
-&+ major\_category\_Engineering
-\end{aligned}
-$$
+# sum of error squared 
+SSR <- sum((testing_data$log_median - model.backfor_predict)^2)
+cat("Sum of Errors Squared: ", SSR)
+
+# correlation between actual values and predicted values 
+cor_predict <- cor(model.backfor_predict, testing_data$log_median)**2
+cat("Correlation between the predicted values and actual values: ", cor_predict)
+
+```
+
+
+Summary table description: 
+
+`forward.rmse` and `backward.rmse` are columns with the RMSE from prediction on the testing dataset depending on either forward selection or backward selection. 
+Each of the row represent the criteria in which to choose the model from either forward or backward selection: `Adjusted R squared`, `BIC`, `Mallow's Cp`. 
 
 ```{r CV_rmse_summary, echo = F}
 
@@ -387,11 +387,11 @@ backward.rmse <- c(b_adjr2_mod_cv.rmse, b_bic_mod_cv.rmse, b_cp_mod_cv.rmse)
 data.frame(criterias, forward.rmse, backward.rmse)
 ```
 
-### Second-stage variable selection involving possible interactions 
+#### Variable selection with interactions 
 
-To examine possible interaction terms, we look at coplots, created on the training data set with standardized continuous variables. The coplots show that `sharewomen` and `employed_fulltime_yearround` seem to have interactions with `major_category`. However, these coplots, the one displayed below for example, are inconclusive because each panel either have a smaller number of points or the points are too clumped together for the fitted lines to show any reliable pattern. Therefore, we will run an Analysis of Variance test to evaluate the quality of the interaction terms under consideration to determine whether or not to keep them. 
+To examine possible interaction terms, we look at coplots, created on the training data set with standardized continuous variables. The coplots show that `sharewomen` and `employed_fulltime_yearround` seem to have interactions with `major_category`. However, these coplots are inconclusive, so we will run an Analysis of Variance test to determine which interaction terms to keep. 
 
-```{r coplots, warning=FALSE, message=FALSE, echo = F, fig.height=3.5, fig.cap = "Coplot showing possible interactions between variables sharewomen and log(median)"}
+```{r coplots, warning=FALSE, message=FALSE, echo = F}
 #interactions
 
 # temp dataframe for co-plots
@@ -430,17 +430,8 @@ xyplot(log_median ~ employed_fulltime_yearround | major_category, data = temp.co
 panel.xyplot(x, y, type = c("p", "smooth", "r"))
 })
 ```
-We will keep all the original terms from the model selected in the first stage of model selection and will use the Analysis of Variance test to determine which interaction terms to add. This test shows that interaction terms `rank:major_category_Engineering` and `sharewomen:major_category_Engineering` have significant p-values. We will include those variables in our final selected model. At this stage, our model is now: 
-
-$$
-\begin{aligned}
-log(median)
-&= rank + sharewomen + employed + employed\_fulltime\_yearround + college\_job\_prop\\ 
-&+ major\_category\_Biology\ Life \& Science +major\_category\_Computers\&Mathematics\\
-&+ major\_category\_Engineering + major\_category\_Engineering * rank\\
-&+ major\_category\_Engineering * sharewomen
-\end{aligned}
-$$
+  
+We will keep all the original terms (not interaction terms) and will use the Analysis of Variance test to determine which interaction terms to add. This test, unlike the coplots shown above, show that interaction terms `rank:major_category_Engineering` and `sharewomen:major_category_Engineering` have significant p-values. We will include those variables in our final selected model. 
 
 ```{r full_model_interactions, include = F}
 # model selected from backward/forward selection 
@@ -514,15 +505,26 @@ interactions_cv.rmse
 
 ```
 
+#### Results
 
-## Diagnostics 
+After considering the interaction terms, the selected model we chose includes the following variables:
+`rank`,`sharewomen`,`employed`, `employed_fulltime_yearround`, `college_job_prop`, 
+`major_category_Biology...Life.Science`, `major_category_Computers...Mathematics`, `major_category_Engineering`, `major_category_Engineering * rank`, and `major_category_Engineering * sharewomen`.
 
-We then perform diagnostics on outliers and checking assumptions. From the `Residuals vs Fitted` and `Scale-Location` plots, we see that there's no pattern in the studentized residuals against the fitted values, so we conclude that the response variable has a quite linear relationship with the explanatory variables, and the errors have constant residuals. Based on the `QQ plot`, we see that most of the data lines around the theoretical line well, meaning that the response variable is somewhat normally distributed. However, according to the `Residuals vs Leverage` plot, there are some outliers with higher Cook's distance, notably. Below, we fitted the model selected above without these points. We calculate the LOOCV RMSE of this new model. 
+### Diagnostics 
 
+We then perform diagnostics on outliers and assumptions. From the `Residuals vs Fitted` and `Scale-Location` plots, we see that there's no pattern in the studentized residuals against the fitted values, so we conclude that the response variable has a quite linear relationship with the explanatory variables, and the errors have constant residuals. Based on the `QQ plot`, we see that most of the data lines around the theoretical line well, meaning that the response variable is somewhat normally distributed. However, according to the `Residuals vs Leverage` plot, there are some outliers with higher Cook's distance, notably. Below, we fitted the model selected above without these points. We calculate the LOOCV RMSE of this new model. 
+
+```{r diagnostics_plot, echo = F, fig.cap = "Figure 5: Diagnosis plots"}
+par(mfrow=c(2,2))
+
+plot(model.inter_reduced)
+
+```
 
 ```{r outliers_diagnostics, echo = F}
 # outlier rows 
-outlier_rows <- training_data[c(7,8,171),]
+outlier_rows <- training_data[c(14, 33, 74, 87),]
 
 # refit model with the outliers 
 interactions_no_outliers <- train(log_median ~ 
@@ -534,7 +536,7 @@ interactions_no_outliers <- train(log_median ~
                         major_category_Engineering +
                         major_category_Engineering * rank +
                         major_category_Engineering * sharewomen, 
-                      data = training_data[-c(7,8,171),], method = "lm", trControl = tc)
+                      data = training_data[-c(14, 33, 74, 87),], method = "lm", trControl = tc)
 
 
 # see CV RMSE
@@ -542,16 +544,7 @@ interactions_no_outliers.rmse <- interactions_no_outliers$results[, "RMSE"]
 interactions_no_outliers.rmse
 ```
 
-
-```{r diagnostics_plot, echo = F,fig.width=7, fig.height=4.5, fig.align="center", fig.cap = "Diagnostics plot"}
-par(mfrow=c(2,2))
-
-plot(model.inter_reduced)
-
-```
-
-
-## Prediction
+### Prediction
 
 
 ```{r predictions, echo = F}
@@ -567,7 +560,7 @@ model.final <- lm(log_median ~
                         major_category_Engineering +
                         major_category_Engineering * rank +
                         major_category_Engineering * sharewomen, 
-                      data = training_data[-c(7,8,171),])
+                      data = training_data[-c(14, 33, 74, 87),])
                   
 
 # new data from testing set 
@@ -580,8 +573,7 @@ predict.standard <- predict(model.final, newdata = new_data1, interval = "predic
 predict.standard
 
 # bring back to original scale 
-predict.original <- exp(predict.standard * sd(log(college_recent_grads$median)) + 
-                           mean(log(college_recent_grads$median)))
+predict.original <- exp(predict.standard * sd(log(college_recent_grads$median)) + mean(log(college_recent_grads$median)))
 
 # get data from original data table
 new_data1.rank <- new_data1[,1] * sd(college_recent_grads$rank) + mean(college_recent_grads$rank)
@@ -593,12 +585,37 @@ temp1
 
 ```
 
-Based on the prediction intervals constructed, we could notice that the predicted value is in the prediction interval. This indicates that the uncertainty of the model is relatively low.
 
+### Interpretation of the coefficients(un-standardized)
 
-## Bootstrap
+```{r, echo = F}
+df <- college_recent_grads
+df <- na.omit(df)
+df["log_median"] <- log(df$median)
+df["college_job_prop"] <- df$college_jobs / (df$college_jobs + df$non_college_jobs)
+df["full_time_yearround_prop"] <- df$employed_fulltime_yearround / df$employed
+df <- na.omit(df)
+df <- dummy_cols(df, select_columns = "major_category", remove_selected_col = TRUE,remove_first_dummy = TRUE)
+col_names <- make.names(names(df),unique=TRUE)
+colnames(df) <- col_names
+set.seed(11)
+training_size <- sample(dim(df)[1],nrow(df)*0.8)
+training_set <- df[training_size,]
+final_model <- lm(log_median ~ 
+                        rank + sharewomen + 
+                        employed + employed_fulltime_yearround + 
+                        college_job_prop +
+                        major_category_Biology...Life.Science+
+                        major_category_Computers...Mathematics + 
+                        major_category_Engineering +
+                        major_category_Engineering * rank +
+                        major_category_Engineering * sharewomen, 
+                      data = training_set[-c(14, 33, 74, 87),])
+```
 
-We will use the bootstrap to assess the stability of the coefficients since different data set will result in different regression coefficients, and then, we will construct 95% confidence intervals for the coefficient on each of the explanatory variables we have selected, using the percentile method.
+### Bootstrap
+
+We will use the bootstrap to assess the stability of the coefficients since different data set will result in different regression coefficient, and then, we will construct 95% confidence intervals for the coefficient on each of the explanatory variables we have selected, using the percentile method.
 
 ```{r Bootstrap, echo = FALSE}
 # Bootstrap Alternative
@@ -640,23 +657,23 @@ head(cis)
 
 We will show, as an example, a histogram in order to see the distribution of the bootstrapped coefficients on an explanatory variable.
 
-```{r, echo = FALSE,fig.width=7, fig.height=4, fig.align="center"}
+```{r, echo = FALSE}
 # Show an example histogram
-hist(store[,3], 
-     main = "Histogram of the bootstrapped coefficients on sharewomen", xlab = "Slope")
+hist(store[,3], main = "Histogram of the bootstrapped coefficients on sharewomen", xlab = "Slope")
 ```
 
 
 In general, if the distribution looks normal, we could make the conclusion that the coefficients are stable. We also noticed that among the 95% confidence intervals computed for the variables we have selected, some contain zero, indicating statistical insignificance, but we believe this could be explained by how, rather than using hypothesis testing, we followed Adjusted R-squared, Mallow's Cp, and BIC,then a series of cross validating, to select the variables.
 
 
+
 ## Conclusions on main findings and possible improvements
 
-From our model results, we see that the major categories "Biology", "Engineering", and "Computer/Math" have significant associations with logged median income. Particularly, engineering majors tend to have higher incomes, while majors with a larger proportion of women, unfortunately, seem to have lower incomes. 
+*** 
+Summarize conclusions 
+***
 
-Some improvements we could implement into our model include: we may want to manually add major categories that were not selected in our model, or we could combine some major categories together depending on their relatedness (for example, combining `Physical Sciences` and `Biology & Life Sciences`), which may allow for our final model include more major category variables. We also might try an exhaustive selection method and trying out different cross validation methods. Finally, we can collect more data to add more information on confounding variables or add more rows per major category. 
-
-\newpage
-## Appendix
-```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
-```
+Some improvements we could implement into our model:
+1. We may want to manually add major categories that were not selected in our model, or we could combine some major categories together depending on their relatedness (for example, combining `Physical Sciences` and `Biology & Life Sciences`), which may allow for our final model include more major category variables.
+2. We also might try an exhaustive selection method and trying out different cross validation methods. 
+3. Finally, we can collect more data to add more information on confounding variables or add more rows per major category. 

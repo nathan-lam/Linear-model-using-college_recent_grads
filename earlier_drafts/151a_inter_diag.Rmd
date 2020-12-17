@@ -1,0 +1,279 @@
+---
+title: "stat151a"
+author: "Kelly Trinh"
+date: "12/9/2020"
+output: html_document
+---
+
+### Research question 
+
+Question: Given a major category, what’s likely to be my median income as a full-time, year-round worker? 
+Model choice: Linear regression. 
+
+### Methodology 
+
+1) EDA 
+- NaN values.
+- Correlation.
+- Transform variables.
+
+2) Variable selection without interactions 
+- Standardize continuous coefficients.
+- Train-test split.
+- Forward/backward selection based on Mallow's Cp, adjusted R squared, and 
+BIC output a few best models. 
+- Choose the model with the smallest RMSE based on predictions on test set.
+
+3) Variable selection with interactions 
+- Interaction plots (using training dataset).
+- Take model selected from step 2 and add interaction terms; run Anova. 
+- Compare model with interaction terms after Anova and without interactions using 
+RMSE based on predictions on test set. 
+
+4) Diagnostics 
+- Diagnostics on outliers and refit model after eliminating outliers. 
+- Diagnostics on assumptions. 
+
+5) Inference 
+- Bootstrapping coefficients to comment on stability of coefficients.
+- Interpret the coefficients and report confidence interval. 
+
+6) Predictions
+- Construct prediction inteval using a row or two from the testing dataset. 
+
+```{r Libraries, message=FALSE, warning=FALSE}
+library(fivethirtyeight) #source of data
+library(corrplot) #correlation plot
+library(dplyr) #data frame manipulation
+library(ggplot2) #plotting
+library(leaps)#variable selection: adjr2, bic, cp
+library(olsrr)#variable selection: aic, p-val
+library(car) #used for diagnostics
+library(fastDummies)
+library(faraway)
+library(caret)
+```
+
+```{r data_cleaning}
+# load data 
+crg <- college_recent_grads
+
+# transform variables 
+crg["log_median"] <- log(crg$median)
+crg["college_job_prop"] <- crg$college_jobs / (crg$college_jobs + crg$non_college_jobs)
+crg["full_time_yearround_prop"] <- crg$employed_fulltime_yearround / crg$employed
+
+# omit NaN values 
+crg <- na.omit(crg)
+
+# temporary data frame 
+temp <- crg
+
+# transform categorical variables
+crg <- dummy_cols(crg, select_columns = "major_category", remove_selected_col = TRUE,remove_first_dummy = TRUE)
+column_names <- make.names(names(crg),unique=TRUE)
+colnames(crg) <- column_names
+```
+
+### EDA
+```{r correlation}
+# continuous variables 
+cont <- select_if(crg, is.numeric)
+corrplot(cor(cont), type = "upper", order = "AOE")
+```
+
+```{r visualizations}
+# plot response variable 
+ggplot(grad, aes(x = median)) + geom_histogram(bins = 100) +
+  scale_x_continuous(breaks=seq(min(grad$median), max(grad$median), 10000)) 
+
+# plot response variable against major categories 
+ggplot(aes(x = major_category, y = log(median)), data = college_recent_grads) + geom_boxplot() + coord_flip()
+
+```
+
+### Variable selection without interactions
+
+```{r train_test_split}
+
+
+
+set.seed(11)
+
+#randomly take 2:8 of data for training
+training_size <- sample(dim(crg)[1],nrow(crg)*0.8)
+training_data <- crg[training_size,]
+testing_data <- crg[-training_size,]
+
+# reserve three rows from testing set to construct prediction interval 
+predict.rows <- sample_n(testing_data, 3) 
+```
+
+```{r prepare_data}
+
+
+Y <- as.matrix(training_data$log_median)
+
+X <- as.matrix(subset(training_data,select=-c(log_median,median, major_code, p25th, p75th, major)))
+
+# Check for linear dependencies, remove "men" or "total"
+alias(lm(Y~X))
+X <- as.matrix(subset(training_data,select=-c(log_median,median, major_code, p25th, p75th, major, men)))
+``` 
+
+```{r forward}
+model <- regsubsets(x = X, y = Y, method = "forward", nbest = 1) %>% summary()
+
+adjustr2 <- model$adjr2
+BIC <- model$bic
+mallow_Cp <- model$cp
+
+cbind(model$which[which.max(adjustr2),], model$which[which.min(BIC),],model$which[which.min(mallow_Cp),])
+
+```
+
+```{r backward}
+model <- regsubsets(x = X, y = Y, method = "backward", nbest = 1) %>% summary()
+
+adjustr2 <- model$adjr2
+BIC <- model$bic
+mallow_Cp <- model$cp
+cbind(model$which[which.max(adjustr2),], model$which[which.min(BIC),],model$which[which.min(mallow_Cp),])
+
+```
+
+```{r CV_backward}
+# Backward Adjusted R-squared CV
+tc <- trainControl(method = "LOOCV")
+b_adjr2_mod_cv <- train(log_median ~ employed + employed_fulltime_yearround + 
+                          college_job_prop +
+                          major_category_Biology...Life.Science+
+                          major_category_Computers...Mathematics + 
+                          rank + sharewomen + major_category_Engineering , data = crg, method = "lm",
+               trControl = tc)
+b_adjr2_mod_cv.rmse <- b_adjr2_mod_cv$results[,"RMSE"]
+
+
+# Backward BIC CV
+b_bic_mod_cv <- train(log_median ~ rank + college_job_prop +  major_category_Engineering, data = crg, method = "lm", trControl = tc )
+b_bic_mod_cv.rmse <- b_bic_mod_cv$results[, "RMSE"]
+
+# Backward Mallow's Cp CV
+b_cp_mod_cv <- train(log_median ~ employed + employed_fulltime_yearround + 
+                       college_job_prop +  major_category_Biology...Life.Science
+                     + major_category_Computers...Mathematics + rank +
+                       major_category_Engineering + sharewomen , data = crg , 
+                     method = "lm", trControl = tc)
+b_cp_mod_cv.rmse <- b_cp_mod_cv$results[, "RMSE"]
+
+```
+
+```{r CV_forward}
+# Forward Adjusted R-squared CV
+f_adjr2_model_cv <- train(log_median ~ rank + unemployment_rate + 
+                           college_job_prop + major_category_Arts + 
+                           major_category_Biology...Life.Science  + 
+                           major_category_Engineering  + 
+                           major_category_Humanities...Liberal.Arts  + 
+                           major_category_Industrial.Arts...Consumer.Services , 
+                           data = crg, method = "lm", trControl = tc)
+
+f_adjr2_model_cv.rmse <- f_adjr2_model_cv$results[, "RMSE"]
+
+# Forward BIC CV
+f_BIC_model_cv <- train(log_median ~ rank + college_job_prop + 
+                           major_category_Engineering, 
+                       data = crg, method = "lm", trControl = tc)
+
+f_BIC_model_cv.rmse <- f_BIC_model_cv$results[, "RMSE"]
+
+# Forward Mallow's Cp CV
+f_Cp_model_cv <- train(log_median ~ rank + unemployment_rate + 
+                          college_job_prop + major_category_Arts + 
+                         major_category_Engineering + 
+                         major_category_Humanities...Liberal.Arts, 
+                      data = crg, method = "lm", trControl = tc)
+
+f_Cp_model_cv.rmse <- f_Cp_model_cv$results[, "RMSE"]
+
+```
+
+Summary table description: 
+
+`forward.rmse` and `backward.rmse` are columns with the RMSE from prediction on the testing dataset depending on either forward selection or backward selection. 
+Each of the row represent the criteria in which to choose the model from either forward or backward selection: `Adjusted R squared`, `BIC`, `Mallow's Cp`. 
+
+```{r CV_rmse_summary}
+
+criterias <- c("Adjusted R squared", "BIC", "Mallow's Cp")
+forward.rmse <- c(f_adjr2_model_cv.rmse, f_BIC_model_cv.rmse, f_Cp_model_cv.rmse)
+backward.rmse <- c(b_adjr2_mod_cv.rmse, b_bic_mod_cv.rmse, b_cp_mod_cv.rmse)
+
+# table of RMSE of each model 
+data.frame(criterias, forward.rmse, backward.rmse)
+
+```
+### Variable selection with interactions 
+
+The 2 models with the lowest RMSE: 
+selected with backward selection based on adjusted R squared and Mallow's Cp. 
+
+
+```{r selected_models_backward_forward}
+
+# selected models from 
+
+log_median ~ employed + employed_fulltime_yearround + 
+                          college_job_prop +
+                          major_category_Biology...Life.Science+
+                          major_category_Computers...Mathematics + 
+                          rank + sharewomen + major_category_Engineering 
+
+
+log_median ~ employed + employed_fulltime_yearround + 
+                       college_job_prop +  major_category_Biology...Life.Science
+                     + major_category_Computers...Mathematics + rank +
+                       major_category_Engineering + sharewomen 
+
+```
+```{r interaction_plots}
+# these co-plots do not contain some major categories because there are two few rows for each of those major categories
+
+# temp dataframe for co-plots
+temp.training <- temp[temp$rank %in% training_data$rank,]
+temp.coplot <- temp.training[temp.training$major_category %in% 
+                               c("Biology & Life Science", 
+                                 "Computers & Mathematics", 
+                                 "Engineering"), ]
+
+# share women and median income 
+xyplot(log_median ~ sharewomen | major_category, data = temp.coplot ,
+       panel = function(x, y) {
+panel.xyplot(x, y, type = c("p", "smooth", "r"))
+})
+
+# unemployment and median income 
+xyplot(log_median ~ unemployment_rate | major_category, data = temp.coplot ,
+       panel = function(x, y) {
+panel.xyplot(x, y, type = c("p", "smooth", "r"))
+})
+
+# full time year round and median income 
+xyplot(log_median ~ fulltime_yearround_prop | major_category, data = temp.coplot ,
+       panel = function(x, y) {
+panel.xyplot(x, y, type = c("p", "smooth", "r"))
+})
+
+# low wage and median income
+xyplot(log_median ~ low_wage_prop | major_category, data = temp.coplot ,
+       panel = function(x, y) {
+panel.xyplot(x, y, type = c("p", "smooth", "r"))
+})
+
+# college jobs and median income
+xyplot(log_median ~ college_prop | major_category, data = temp.coplot ,
+       panel = function(x, y) {
+panel.xyplot(x, y, type = c("p", "smooth", "r"))
+})
+
+```

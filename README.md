@@ -6,5 +6,5 @@ Results of the linear model analysis can be found in **stat151a_final_file.pdf**
 This is a linear model analysis examining the median salary based on different measurements of college major departments. 
 
 
-Dataset can be found here
+Dataset can be found here  
 https://www.kaggle.com/fivethirtyeight/fivethirtyeight-college-majors-dataset?select=recent-grads.csv

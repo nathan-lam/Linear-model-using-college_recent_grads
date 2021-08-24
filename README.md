@@ -7,5 +7,4 @@ This is a linear model analysis examining the median salary based on different m
 
 
 Dataset can be found here
-
 https://www.kaggle.com/fivethirtyeight/fivethirtyeight-college-majors-dataset?select=recent-grads.csv

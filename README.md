@@ -1,5 +1,5 @@
 # Linear-model-using-college_recent_grads
-Project from Stat 151a: Linear Modelling during Fall 2020
+A group project from Stat 151a: Linear Modelling during Fall 2020
 
 This is a linear model analysis examining the median salary based on different measurements of college major departments. 
 
